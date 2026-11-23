@@ -9,7 +9,6 @@ from typing import Any
 import aiohttp
 
 from app.schemas import (
-    Bull,
     Firm,
     Generation,
     Model,
@@ -17,9 +16,6 @@ from app.schemas import (
     PriceChangeChart,
     SimilarCars,
     Wheel,
-)
-from app.schemas import (
-    DromCatalogModel as DromModel,
 )
 
 # ────────────────────────────────────────────────────────────

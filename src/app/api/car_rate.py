@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException
 
+from app import regions_config
 from app.parser.car_rate import (
     get_firms_list,
     get_frames_list,
     get_generations_list,
-    get_modifications_list,
     get_models_list,
+    get_modifications_list,
     get_price_change_chart,
     get_similar_cars,
     get_years_list,
@@ -16,11 +17,17 @@ from app.schemas import (
     Model,
     Modification,
     PriceChangeChart,
+    Region,
     SimilarCars,
     Wheel,
 )
 
 router = APIRouter(prefix="/rate-car", tags=["rate-car"])
+
+
+@router.get("/regions", response_model=list[Region])
+async def regions() -> list[Region]:
+    return [Region.model_validate(region) for region in regions_config.REGIONS]
 
 
 @router.get("/firms", response_model=list[Firm])
