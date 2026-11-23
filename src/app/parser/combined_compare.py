@@ -174,6 +174,15 @@ async def get_combined_compare(
         if engine_type is None:
             japan_missing_fields.append("engine_type")
 
+        effective_query = query.model_copy(
+            update={
+                "price": price if price > 0 else None,
+                "engine_volume": None if is_electric else engine_volume,
+                "engine_horse_power": engine_horse_power,
+                "engine_type": engine_type,
+            }
+        )
+
         if (
             price > 0
             and engine_horse_power is not None
@@ -185,7 +194,7 @@ async def get_combined_compare(
             )
         ):
             japan_import_request = JapanImportRequest(
-                price=price,
+                price_jpy=price,
                 currency=Currency.YEN,
                 vehicleAge=_vehicle_age_from_year(year),
                 engineType=engine_type,
@@ -208,6 +217,7 @@ async def get_combined_compare(
         )
 
         return CombinedCarRateResponse(
+            query=effective_query,
             price_change_chart=price_change_task.result(),
             similar_cars=similar_cars_task.result(),
             auctions=auction_response,

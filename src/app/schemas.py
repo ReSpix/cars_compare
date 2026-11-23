@@ -243,7 +243,7 @@ class DromJapanModel(BaseModel):
 
 
 class JapanImportRequest(DromJapanModel):
-    price: int = Field(gt=0)
+    price_jpy: int = Field(gt=0)
     currency: Currency
     vehicle_age: VehicleAge = Field(alias="vehicleAge")
     engine_type: EngineType = Field(alias="engineType")
@@ -334,6 +334,7 @@ class JapanImportResponse(DromJapanModel):
 
 
 class CombinedCarRateResponse(BaseModel):
+    query: CarCompareQuery
     price_change_chart: PriceChangeChart
     similar_cars: SimilarCars
     auctions: AuctionResponse

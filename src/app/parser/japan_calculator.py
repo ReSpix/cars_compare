@@ -98,7 +98,7 @@ if __name__ == "__main__":
         calculator = DromJapanCalculator()
 
         request = JapanImportRequest(
-            price=1_000_000,
+            price_jpy=1_000_000,
             currency=Currency.YEN,
             vehicleAge=VehicleAge.FROM_3_TO_5,
             engineType=EngineType.DIESEL_OR_GASOLINE,

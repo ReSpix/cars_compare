@@ -47,7 +47,10 @@ All parameters are passed as query parameters:
 derived from the firm, model, year, and engine displacement parsed from the
 selected modification. `import_purpose` accepts `USAGE` or `RESALE`.
 If no positive auction prices are available, `japan_import_response` is `null`;
-the other combined results are still returned. `results_availability` reports
+the other combined results are still returned. `query` contains the effective
+query values, including automatically extracted `price`, `engine_volume`,
+`engine_horse_power`, and `engine_type`; the frontend can detect or override
+incorrectly extracted values in a follow-up request. `results_availability` reports
 whether each combined result was obtained and lists the missing Japan calculator
 fields (for example, `price`, `engine_volume`, `engine_horse_power`, or
 `engine_type`) when it was not. Each entry contains `available` and
