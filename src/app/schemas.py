@@ -6,6 +6,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class Region(BaseModel):
+    name: str
+    code: int
+
+
 class Car(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
