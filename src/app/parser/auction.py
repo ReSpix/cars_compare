@@ -1,5 +1,6 @@
 import asyncio
 import json
+from contextlib import AsyncExitStack
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -11,16 +12,10 @@ async def parse_drom(
     url: str, session: aiohttp.ClientSession | None = None
 ) -> list[Car]:
     try:
-        if session is None:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url,
-                    headers={"User-Agent": "Mozilla/5.0"},
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as response:
-                    response.raise_for_status()
-                    page = await response.text()
-        else:
+        async with AsyncExitStack() as stack:
+            if session is None:
+                session = await stack.enter_async_context(aiohttp.ClientSession())
+
             async with session.get(
                 url,
                 headers={"User-Agent": "Mozilla/5.0"},
