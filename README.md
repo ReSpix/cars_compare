@@ -10,6 +10,22 @@ uv run uvicorn app.main:app --app-dir src --reload
 The health endpoint is available at [http://localhost:8000/health](http://localhost:8000/health).
 The rate-car API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
 
+## Log endpoint
+
+`POST /log` accepts a plain-text string and stores it in the local SQLite
+database. The default database is in memory; Docker sets
+`LOG_DATABASE_PATH=/app/data/logs.db` to store logs in a file backed by the
+`logs_data` Docker volume. Set `LOG_DATABASE_PATH` to a file path to use a file
+database outside Docker.
+
+```bash
+curl -X POST http://localhost:8000/log \
+  -H "Content-Type: text/plain" \
+  --data "Example log message"
+```
+
+The response contains the ID of the stored log entry.
+
 ## Auction endpoints
 
 | Endpoint | Required parameters |
