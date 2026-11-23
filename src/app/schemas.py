@@ -152,6 +152,18 @@ class SimilarCars(DromCatalogModel):
         return [] if v is None else v
 
 
+class ResultAvailability(BaseModel):
+    available: bool
+    missing_fields: list[str] = Field(default_factory=list)
+
+
+class CombinedResultsAvailability(BaseModel):
+    price_change_chart: ResultAvailability
+    similar_cars: ResultAvailability
+    auctions: ResultAvailability
+    japan_import_response: ResultAvailability
+
+
 class Currency(str, Enum):
     YEN = "YEN"
     EUR = "EUR"
@@ -174,6 +186,54 @@ class ImportPurpose(str, Enum):
     RESALE = "RESALE"
 
 
+class CarCompareQuery(BaseModel):
+    firm_id: int = Field(description="Required input: firm catalog ID.")
+    model_id: int = Field(description="Required input: model catalog ID.")
+    year: int = Field(description="Required input: vehicle model year.")
+    modification_id: int = Field(description="Required input: modification ID.")
+    wheel: Wheel = Field(description="Required input: steering wheel position.")
+    frame: str = Field(description="Required input: body type.")
+    region_id: int = Field(description="Required input: Drom region ID.")
+    import_purpose: ImportPurpose = Field(
+        description="Required input: USAGE or RESALE."
+    )
+    price: int | None = Field(
+        default=None,
+        gt=0,
+        json_schema_extra={"x-auto-extracted": True},
+        description=(
+            "Optional manual Japan import price in JPY. If omitted, the average "
+            "auction price is used when available."
+        ),
+    )
+    engine_volume: int | None = Field(
+        default=None,
+        gt=0,
+        json_schema_extra={"x-auto-extracted": True},
+        description=(
+            "Optional manual engine volume in cubic centimeters. If omitted, "
+            "the value is extracted from the selected modification."
+        ),
+    )
+    engine_horse_power: int | None = Field(
+        default=None,
+        gt=0,
+        json_schema_extra={"x-auto-extracted": True},
+        description=(
+            "Optional manual engine horsepower. If omitted, the value is "
+            "extracted from the selected modification."
+        ),
+    )
+    engine_type: EngineType | None = Field(
+        default=None,
+        json_schema_extra={"x-auto-extracted": True},
+        description=(
+            "Optional manual engine type. If omitted, the value is extracted "
+            "from the selected modification."
+        ),
+    )
+
+
 class DromJapanModel(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -186,12 +246,16 @@ class JapanImportRequest(DromJapanModel):
     currency: Currency
     vehicle_age: VehicleAge = Field(alias="vehicleAge")
     engine_type: EngineType = Field(alias="engineType")
-    engine_volume: int = Field(alias="engineVolumeInCubicCentimeters", gt=0)
+    engine_volume: int | None = Field(
+        default=None,
+        alias="engineVolumeInCubicCentimeters",
+        gt=0,
+    )
     engine_horse_power: int = Field(alias="engineHorsePower", gt=0)
     import_purpose: ImportPurpose = Field(alias="importPurpose")
 
     def to_params(self) -> dict[str, str]:
-        data = self.model_dump(by_alias=True, mode="json")
+        data = self.model_dump(by_alias=True, mode="json", exclude_none=True)
         return {key: str(value) for key, value in data.items()}
 
 
@@ -221,7 +285,10 @@ class JapanForm(DromJapanModel):
     currency: Currency
     vehicle_age: VehicleAge = Field(alias="vehicleAge")
     engine_type: EngineType = Field(alias="engineType")
-    engine_volume: str = Field(alias="engineVolumeInCubicCentimeters")
+    engine_volume: str | None = Field(
+        default=None,
+        alias="engineVolumeInCubicCentimeters",
+    )
     engine_horse_power: str = Field(alias="engineHorsePower")
     import_purpose: ImportPurpose = Field(alias="importPurpose")
 
@@ -270,3 +337,4 @@ class CombinedCarRateResponse(BaseModel):
     similar_cars: SimilarCars
     auctions: AuctionResponse
     japan_import_response: JapanImportResponse | None = None
+    results_availability: CombinedResultsAvailability

@@ -8,9 +8,8 @@ import aiohttp
 from app.parser.auction import get_url, parse_auction
 from app.parser.car_rate import (
     get_firms_list,
-    get_generations_list,
+    get_generation_and_modification,
     get_models_list,
-    get_modifications_list,
     get_price_change_chart,
     get_similar_cars,
 )
@@ -18,13 +17,14 @@ from app.parser.japan_calculator import DromJapanCalculator
 from app.schemas import (
     AuctionQuery,
     AuctionResponse,
+    CarCompareQuery,
     CombinedCarRateResponse,
+    CombinedResultsAvailability,
     Currency,
     EngineType,
-    ImportPurpose,
     JapanImportRequest,
+    ResultAvailability,
     VehicleAge,
-    Wheel,
 )
 
 
@@ -33,7 +33,10 @@ def _auction_slug(title: str) -> str:
 
 
 def _engine_volume_from_modification(title: str) -> int | None:
-    match = re.search(r"(?<![\d.,])(\d+(?:[.,]\d+)?)\s*л(?:\.|(?=\s|,|$))", title)
+    match = re.search(
+        r"^\s*(\d+(?:[.,]\d+)?)\s*л(?:\.?)(?=\s*,)",
+        title,
+    )
     if match is None:
         return None
     return int(Decimal(match.group(1).replace(",", ".")) * 1000)
@@ -44,13 +47,13 @@ def _engine_horse_power_from_modification(title: str) -> int | None:
     return int(match.group(1)) if match is not None else None
 
 
-def _engine_type_from_modification(title: str) -> EngineType:
+def _engine_type_from_modification(title: str) -> EngineType | None:
     normalized_title = title.casefold()
     if any(fuel in normalized_title for fuel in ("бензин", "дизел", "гибрид")):
         return EngineType.DIESEL_OR_GASOLINE
     if "электр" in normalized_title or "electric" in normalized_title:
         return EngineType.ELECTRIC_MOTOR
-    raise ValueError("Cannot determine engine type from modification")
+    return None
 
 
 def _vehicle_age_from_year(year: int) -> VehicleAge:
@@ -63,17 +66,16 @@ def _vehicle_age_from_year(year: int) -> VehicleAge:
 
 
 async def get_combined_compare(
-    firm_id: int,
-    model_id: int,
-    year: int,
-    modification_id: int,
-    generation_number: int,
-    restyling_number: int,
-    wheel: Wheel,
-    frame: str,
-    region_id: int,
-    import_purpose: ImportPurpose,
+    query: CarCompareQuery,
 ) -> CombinedCarRateResponse:
+    firm_id = query.firm_id
+    model_id = query.model_id
+    year = query.year
+    modification_id = query.modification_id
+    wheel = query.wheel
+    frame = query.frame
+    region_id = query.region_id
+
     async with aiohttp.ClientSession() as session:
         firms = await get_firms_list(session)
         firm = next((item for item in firms if item.id == firm_id), None)
@@ -85,43 +87,26 @@ async def get_combined_compare(
         if model is None:
             raise LookupError(f"Model {model_id} not found for firm {firm_id}")
 
-        generations = await get_generations_list(
+        _, modification = await get_generation_and_modification(
             model_id=model_id,
             year=year,
             frame=frame,
             wheel=wheel,
+            modification_id=modification_id,
             session=session,
         )
-        generation = next(
-            (
-                item
-                for item in generations
-                if item.generationNumber == generation_number
-                and item.restylingNumber == restyling_number
-            ),
-            None,
-        )
-        if generation is None:
-            raise LookupError("Generation not found")
-
-        modifications = await get_modifications_list(
-            model_id=model_id,
-            year=year,
-            frame=frame,
-            generation_value=generation.value,
-            wheel=wheel,
-            session=session,
-        )
-        modification = next(
-            (item for item in modifications if item.id == modification_id),
-            None,
-        )
-        if modification is None:
-            raise LookupError(f"Modification {modification_id} not found")
 
         auction_firm = _auction_slug(firm.title)
         auction_model = _auction_slug(model.title)
-        engine_volume = _engine_volume_from_modification(modification.title)
+        engine_type = query.engine_type or _engine_type_from_modification(
+            modification.title
+        )
+        is_electric = engine_type is EngineType.ELECTRIC_MOTOR
+        engine_volume = None
+        if not is_electric:
+            engine_volume = query.engine_volume or _engine_volume_from_modification(
+                modification.title
+            )
         auction_query = AuctionQuery(
             firm=auction_firm,
             model=auction_model,
@@ -136,8 +121,6 @@ async def get_combined_compare(
                     model_id=model_id,
                     year=year,
                     modification_id=modification_id,
-                    generation_number=generation_number,
-                    restyling_number=restyling_number,
                     wheel=wheel,
                     frame=frame,
                     region_id=region_id,
@@ -150,8 +133,6 @@ async def get_combined_compare(
                     model_id=model_id,
                     year=year,
                     modification_id=modification_id,
-                    generation_number=generation_number,
-                    restyling_number=restyling_number,
                     wheel=wheel,
                     frame=frame,
                     region_id=region_id,
@@ -175,32 +156,59 @@ async def get_combined_compare(
             examples=auction_examples_task.result(),
         )
         japan_import_response = None
-        if auction_response.avg_price_jpy > 0:
-            if engine_volume is None or engine_volume <= 0:
-                raise ValueError("Cannot determine engine volume from modification")
+        price = query.price or auction_response.avg_price_jpy
+        engine_horse_power = query.engine_horse_power or (
+            _engine_horse_power_from_modification(modification.title)
+        )
+        japan_missing_fields = []
+        if price <= 0:
+            japan_missing_fields.append("price")
+        if not is_electric and (
+            engine_volume is None or engine_volume <= 0
+        ):
+            japan_missing_fields.append("engine_volume")
+        if engine_horse_power is None or engine_horse_power <= 0:
+            japan_missing_fields.append("engine_horse_power")
+        if engine_type is None:
+            japan_missing_fields.append("engine_type")
 
-            engine_horse_power = _engine_horse_power_from_modification(
-                modification.title
+        if (
+            price > 0
+            and engine_horse_power is not None
+            and engine_horse_power > 0
+            and engine_type is not None
+            and (
+                is_electric
+                or (engine_volume is not None and engine_volume > 0)
             )
-            if engine_horse_power is None or engine_horse_power <= 0:
-                raise ValueError("Cannot determine engine horsepower from modification")
-
+        ):
             japan_import_request = JapanImportRequest(
-                price=auction_response.avg_price_jpy,
+                price=price,
                 currency=Currency.YEN,
                 vehicleAge=_vehicle_age_from_year(year),
-                engineType=_engine_type_from_modification(modification.title),
+                engineType=engine_type,
                 engineVolumeInCubicCentimeters=engine_volume,
                 engineHorsePower=engine_horse_power,
-                importPurpose=import_purpose,
+                importPurpose=query.import_purpose,
             )
             japan_import_response = await DromJapanCalculator(session=session).calculate(
                 japan_import_request
             )
+
+        results_availability = CombinedResultsAvailability(
+            price_change_chart=ResultAvailability(available=True),
+            similar_cars=ResultAvailability(available=True),
+            auctions=ResultAvailability(available=True),
+            japan_import_response=ResultAvailability(
+                available=japan_import_response is not None,
+                missing_fields=japan_missing_fields,
+            ),
+        )
 
         return CombinedCarRateResponse(
             price_change_chart=price_change_task.result(),
             similar_cars=similar_cars_task.result(),
             auctions=auction_response,
             japan_import_response=japan_import_response,
+            results_availability=results_availability,
         )

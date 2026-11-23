@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query
 
 from app import regions_config
 from app.parser.car_rate import (
@@ -13,10 +15,10 @@ from app.parser.car_rate import (
 )
 from app.parser.combined_compare import get_combined_compare
 from app.schemas import (
+    CarCompareQuery,
     CombinedCarRateResponse,
     Firm,
     Generation,
-    ImportPurpose,
     Model,
     Modification,
     PriceChangeChart,
@@ -62,16 +64,14 @@ async def years(model_id: int, wheel: Wheel) -> list[int]:
 async def frames(
     model_id: int,
     year: int,
-    wheel: Wheel,
-    with_special: bool = False,
-    with_other_frame: bool = False,
+    wheel: Wheel
 ) -> list[str]:
     return await get_frames_list(
         model_id=model_id,
         year=year,
         wheel=wheel,
-        with_special=with_special,
-        with_other_frame=with_other_frame,
+        with_special=False,
+        with_other_frame=False,
     )
 
 
@@ -126,23 +126,22 @@ async def price_change_chart(
     model_id: int,
     year: int,
     modification_id: int,
-    generation_number: int,
-    restyling_number: int,
     wheel: Wheel,
     frame: str,
     region_id: int,
 ) -> PriceChangeChart:
-    return await get_price_change_chart(
-        firm_id=firm_id,
-        model_id=model_id,
-        year=year,
-        modification_id=modification_id,
-        generation_number=generation_number,
-        restyling_number=restyling_number,
-        wheel=wheel,
-        frame=frame,
-        region_id=region_id,
-    )
+    try:
+        return await get_price_change_chart(
+            firm_id=firm_id,
+            model_id=model_id,
+            year=year,
+            modification_id=modification_id,
+            wheel=wheel,
+            frame=frame,
+            region_id=region_id,
+        )
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.get("/similar-cars", response_model=SimilarCars)
@@ -151,51 +150,30 @@ async def similar_cars(
     model_id: int,
     year: int,
     modification_id: int,
-    generation_number: int,
-    restyling_number: int,
     wheel: Wheel,
     frame: str,
     region_id: int,
 ) -> SimilarCars:
-    return await get_similar_cars(
-        firm_id=firm_id,
-        model_id=model_id,
-        year=year,
-        modification_id=modification_id,
-        generation_number=generation_number,
-        restyling_number=restyling_number,
-        wheel=wheel,
-        frame=frame,
-        region_id=region_id,
-    )
-
-
-@router.get("/combined", response_model=CombinedCarRateResponse)
-async def combined_car_rate(
-    firm_id: int,
-    model_id: int,
-    year: int,
-    modification_id: int,
-    generation_number: int,
-    restyling_number: int,
-    wheel: Wheel,
-    frame: str,
-    region_id: int,
-    import_purpose: ImportPurpose,
-) -> CombinedCarRateResponse:
     try:
-        return await get_combined_compare(
+        return await get_similar_cars(
             firm_id=firm_id,
             model_id=model_id,
             year=year,
             modification_id=modification_id,
-            generation_number=generation_number,
-            restyling_number=restyling_number,
             wheel=wheel,
             frame=frame,
             region_id=region_id,
-            import_purpose=import_purpose,
         )
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.get("/combined", response_model=CombinedCarRateResponse)
+async def combined_car_rate(
+    query: Annotated[CarCompareQuery, Query()],
+) -> CombinedCarRateResponse:
+    try:
+        return await get_combined_compare(query)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except ValueError as error:

@@ -424,6 +424,40 @@ async def get_modifications_list(
     return [Modification(**modification) for modification in data["modification"]]
 
 
+async def get_generation_and_modification(
+    model_id: int,
+    year: int,
+    frame: str,
+    wheel: Wheel,
+    modification_id: int,
+    session: aiohttp.ClientSession | None = None,
+) -> tuple[Generation, Modification]:
+    generations = await get_generations_list(
+        model_id=model_id,
+        year=year,
+        frame=frame,
+        wheel=wheel,
+        session=session,
+    )
+    for generation in generations:
+        modifications = await get_modifications_list(
+            model_id=model_id,
+            year=year,
+            frame=frame,
+            generation_value=generation.value,
+            wheel=wheel,
+            session=session,
+        )
+        modification = next(
+            (item for item in modifications if item.id == modification_id),
+            None,
+        )
+        if modification is not None:
+            return generation, modification
+
+    raise LookupError(f"Modification {modification_id} not found")
+
+
 # ────────────────────────────────────────────────────────────
 # 7. Финальные REST-вызовы
 # ────────────────────────────────────────────────────────────
@@ -467,13 +501,19 @@ async def get_price_change_chart(
     model_id: int,
     year: int,
     modification_id: int,
-    generation_number: int,
-    restyling_number: int,
     wheel: Wheel,
     frame: str,
     region_id: int,
     session: aiohttp.ClientSession | None = None,
 ) -> PriceChangeChart:
+    generation, _ = await get_generation_and_modification(
+        model_id=model_id,
+        year=year,
+        frame=frame,
+        wheel=wheel,
+        modification_id=modification_id,
+        session=session,
+    )
     raw = await _rest_get(
         "price-change-chart",
         _rate_params(
@@ -481,8 +521,8 @@ async def get_price_change_chart(
             model_id,
             year,
             modification_id,
-            generation_number,
-            restyling_number,
+            generation.generationNumber,
+            generation.restylingNumber,
             wheel,
             frame,
             region_id,
@@ -497,13 +537,19 @@ async def get_similar_cars(
     model_id: int,
     year: int,
     modification_id: int,
-    generation_number: int,
-    restyling_number: int,
     wheel: Wheel,
     frame: str,
     region_id: int,
     session: aiohttp.ClientSession | None = None,
 ) -> SimilarCars:
+    generation, _ = await get_generation_and_modification(
+        model_id=model_id,
+        year=year,
+        frame=frame,
+        wheel=wheel,
+        modification_id=modification_id,
+        session=session,
+    )
     raw = await _rest_get(
         "similar-cars",
         _rate_params(
@@ -511,8 +557,8 @@ async def get_similar_cars(
             model_id,
             year,
             modification_id,
-            generation_number,
-            restyling_number,
+            generation.generationNumber,
+            generation.restylingNumber,
             wheel,
             frame,
             region_id,
@@ -585,8 +631,6 @@ if __name__ == "__main__":
                 model_id=camry.id,
                 year=YEAR,
                 modification_id=modification.id,
-                generation_number=generation.generationNumber,
-                restyling_number=generation.restylingNumber,
                 wheel=WHEEL,
                 frame=FRAME,
                 region_id=REGION_ID,
@@ -602,8 +646,6 @@ if __name__ == "__main__":
                 model_id=camry.id,
                 year=YEAR,
                 modification_id=modification.id,
-                generation_number=generation.generationNumber,
-                restyling_number=generation.restylingNumber,
                 wheel=WHEEL,
                 frame=FRAME,
                 region_id=REGION_ID,
