@@ -36,3 +36,12 @@ docker compose up --build
 ```
 
 The API is available at [http://localhost:8000/health](http://localhost:8000/health).
+
+## Run in development mode with Docker Compose
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up --build
+```
+
+In development mode, `src` is mounted into the container and Uvicorn reloads the
+API when Python files change. Stop the container with `Ctrl+C`.
