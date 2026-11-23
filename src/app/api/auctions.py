@@ -23,11 +23,6 @@ async def get_auctions(
         year=year,
         engine_volume=engine_volume,
     )
-    url = get_url(
-        firm=firm,
-        model=model,
-        year=year,
-        engine_volume=engine_volume,
-    )
+    url = get_url(query)
     examples = await parse_auction(url)
     return AuctionResponse(query=query, url=url, examples=examples)

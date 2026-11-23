@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack
 import aiohttp
 from bs4 import BeautifulSoup
 
-from app.schemas import Car
+from app.schemas import AuctionQuery, Car
 
 
 async def parse_drom(
@@ -69,20 +69,18 @@ async def parse_auction(
     return await parse_drom(url=url, session=session)
 
 
-def get_url(
-    firm: str, model: str, year: int | None = None, engine_volume: int | None = None
-):
-    url = f"https://www.drom.ru/world/japan/{firm}/{model}/"
+def get_url(query: AuctionQuery):
+    url = f"https://www.drom.ru/world/japan/{query.firm}/{query.model}/"
 
     parameters = []
 
-    if year is not None:
-        parameters.append(f"yearFrom={year}")
-        parameters.append(f"yearTo={year}")
+    if query.year is not None:
+        parameters.append(f"yearFrom={query.year}")
+        parameters.append(f"yearTo={query.year}")
 
-    if engine_volume is not None:
-        parameters.append(f"engineVolumeFrom={engine_volume}")
-        parameters.append(f"engineVolumeTo={engine_volume}")
+    if query.engine_volume is not None:
+        parameters.append(f"engineVolumeFrom={query.engine_volume}")
+        parameters.append(f"engineVolumeTo={query.engine_volume}")
 
     if len(parameters) > 0:
         url += "?" + "&".join(parameters)
@@ -91,6 +89,7 @@ def get_url(
 
 
 if __name__ == "__main__":
+
     async def main() -> None:
         url = get_url("toyota", "aqua", 2020, 1500)
         cars = await parse_drom(url)

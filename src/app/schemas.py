@@ -77,6 +77,11 @@ class AuctionQuery(BaseModel):
     year: int | None = Field(default=None, ge=1900, le=2100)
     engine_volume: int | None = Field(default=None, ge=1)
 
+    @field_validator("firm", "model")
+    @classmethod
+    def lowercase_name(cls, value: str) -> str:
+        return value.lower()
+
 
 class AuctionResponse(BaseModel):
     query: AuctionQuery
