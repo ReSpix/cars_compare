@@ -13,26 +13,17 @@ from app.parser.car_rate import (
     get_similar_cars,
     get_years_list,
 )
-from app.parser.combined_compare import get_combined_compare
 from app.schemas import (
-    CarCompareQuery,
-    CombinedCarRateResponse,
     Firm,
     Generation,
     Model,
     Modification,
     PriceChangeChart,
-    Region,
     SimilarCars,
     Wheel,
 )
 
 router = APIRouter(prefix="/rate-car", tags=["rate-car"])
-
-
-@router.get("/regions", response_model=list[Region])
-async def regions() -> list[Region]:
-    return [Region.model_validate(region) for region in regions_config.REGIONS]
 
 
 @router.get("/firms", response_model=list[Firm])
@@ -61,11 +52,7 @@ async def years(model_id: int, wheel: Wheel) -> list[int]:
 
 
 @router.get("/frames", response_model=list[str])
-async def frames(
-    model_id: int,
-    year: int,
-    wheel: Wheel
-) -> list[str]:
+async def frames(model_id: int, year: int, wheel: Wheel) -> list[str]:
     return await get_frames_list(
         model_id=model_id,
         year=year,
@@ -166,15 +153,3 @@ async def similar_cars(
         )
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-
-
-@router.get("/combined", response_model=CombinedCarRateResponse)
-async def combined_car_rate(
-    query: Annotated[CarCompareQuery, Query()],
-) -> CombinedCarRateResponse:
-    try:
-        return await get_combined_compare(query)
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
