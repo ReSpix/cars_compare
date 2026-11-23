@@ -22,8 +22,9 @@ The rate-car API documentation is available at [http://localhost:8000/docs](http
 GET /auctions?firm=toyota&model=aqua&year=2020&engine_volume=1500
 ```
 
-The response contains `query`, matching `examples`, and `avg_price` as an integer
-average of all JPY prices available in the examples.
+The response contains `query`, the fully populated auction search `url`,
+matching `examples`, and `avg_price_jpy` as an integer average of all JPY
+prices available in the examples.
 
 ## Rate-car endpoints
 

@@ -80,6 +80,7 @@ class AuctionQuery(BaseModel):
 
 class AuctionResponse(BaseModel):
     query: AuctionQuery
+    url: str
     examples: list[Car]
     avg_price_jpy: int = 0
 

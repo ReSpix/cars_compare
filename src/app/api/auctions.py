@@ -30,4 +30,4 @@ async def get_auctions(
         engine_volume=engine_volume,
     )
     examples = await parse_auction(url)
-    return AuctionResponse(query=query, examples=examples)
+    return AuctionResponse(query=query, url=url, examples=examples)

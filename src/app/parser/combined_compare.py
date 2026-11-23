@@ -113,6 +113,12 @@ async def get_combined_compare(
             year=year,
             engine_volume=engine_volume,
         )
+        auction_url = get_url(
+            firm=auction_firm,
+            model=auction_model,
+            year=year,
+            engine_volume=engine_volume,
+        )
 
         async with asyncio.TaskGroup() as tasks:
             price_change_task = tasks.create_task(
@@ -141,18 +147,14 @@ async def get_combined_compare(
             )
             auction_examples_task = tasks.create_task(
                 parse_auction(
-                    get_url(
-                        firm=auction_firm,
-                        model=auction_model,
-                        year=year,
-                        engine_volume=engine_volume,
-                    ),
+                    auction_url,
                     session=session,
                 )
             )
 
         auction_response = AuctionResponse(
             query=auction_query,
+            url=auction_url,
             examples=auction_examples_task.result(),
         )
         japan_import_response = None
