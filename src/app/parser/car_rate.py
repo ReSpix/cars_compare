@@ -4,7 +4,13 @@
 """
 
 import asyncio
-from typing import Any
+import inspect
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable
+from copy import deepcopy
+from functools import wraps
+from time import monotonic
+from typing import Any, ParamSpec, TypeVar
 
 import aiohttp
 
@@ -73,10 +79,64 @@ FRAME_TO_INT: dict[str, int] = {
     "TRUCK_TRACTOR": 18,
 }
 
+_CATALOG_CACHE_TTL_SECONDS = 24 * 60 * 60
+_CATALOG_CACHE_MAX_SIZE = 512
+_catalog_cache: OrderedDict[tuple[Any, ...], tuple[float, Any]] = OrderedDict()
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
+
 
 # ────────────────────────────────────────────────────────────
 # Хелперы
 # ────────────────────────────────────────────────────────────
+
+async def _get_cached_catalog(
+    key: tuple[Any, ...],
+    loader: Callable[[], Awaitable[_T]],
+) -> _T:
+    cached = _catalog_cache.get(key)
+    if cached is not None:
+        expires_at, value = cached
+        if expires_at > monotonic():
+            _catalog_cache.move_to_end(key)
+            return deepcopy(value)
+        del _catalog_cache[key]
+
+    value = await loader()
+    _catalog_cache[key] = (monotonic() + _CATALOG_CACHE_TTL_SECONDS, deepcopy(value))
+    _catalog_cache.move_to_end(key)
+    while len(_catalog_cache) > _CATALOG_CACHE_MAX_SIZE:
+        _catalog_cache.popitem(last=False)
+    return value
+
+
+def _cache_catalog(
+    *key_parameters: str,
+) -> Callable[
+    [Callable[_P, Awaitable[_T]]],
+    Callable[_P, Awaitable[_T]],
+]:
+    def decorate(
+        function: Callable[_P, Awaitable[_T]],
+    ) -> Callable[_P, Awaitable[_T]]:
+        signature = inspect.signature(function)
+
+        @wraps(function)
+        async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()
+            key = (
+                function.__name__,
+                *(bound.arguments[name] for name in key_parameters),
+            )
+            return await _get_cached_catalog(
+                key,
+                lambda: function(*args, **kwargs),
+            )
+
+        return wrapped
+
+    return decorate
 
 
 async def _request_json(
@@ -152,12 +212,13 @@ query Firms {
 """
 
 
+@_cache_catalog()
 async def get_firms_list(
     session: aiohttp.ClientSession | None = None,
 ) -> list[Firm]:
     data = await _gql("Firms", {}, _FIRMS_QUERY, session=session)
-    f = data["firms"]
-    return [Firm(**it) for it in _dedup_by_id(f["topItems"] + f["items"])]
+    firms = data["firms"]
+    return [Firm(**item) for item in _dedup_by_id(firms["topItems"] + firms["items"])]
 
 
 # ────────────────────────────────────────────────────────────
@@ -181,6 +242,7 @@ query Models($firm: PIntId!, $regionId: Int, $onlyCatalog: Boolean!, $withSpecia
 """
 
 
+@_cache_catalog("firm_id", "region_id", "only_catalog", "with_special")
 async def get_models_list(
     firm_id: int,
     region_id: int = 0,
@@ -199,8 +261,8 @@ async def get_models_list(
         _MODELS_QUERY,
         session=session,
     )
-    m = data["model"]
-    return [Model(**it) for it in _dedup_by_id(m["topItems"] + m["items"])]
+    models = data["model"]
+    return [Model(**item) for item in _dedup_by_id(models["topItems"] + models["items"])]
 
 
 # ────────────────────────────────────────────────────────────
@@ -214,6 +276,7 @@ query Years($model: PIntId!, $wheel: Wheel) {
 """
 
 
+@_cache_catalog("model_id", "wheel")
 async def get_years_list(
     model_id: int,
     wheel: Wheel,
@@ -243,6 +306,13 @@ query Frames($model: PIntId!, $wheel: Wheel, $year: Year,
 """
 
 
+@_cache_catalog(
+    "model_id",
+    "year",
+    "wheel",
+    "with_special",
+    "with_other_frame",
+)
 async def get_frames_list(
     model_id: int,
     year: int,
@@ -292,6 +362,7 @@ query Generations($model: PIntId!, $wheel: Wheel, $frame: CatalogFrame, $year: Y
 """
 
 
+@_cache_catalog("model_id", "year", "frame", "wheel")
 async def get_generations_list(
     model_id: int,
     year: int,
@@ -305,7 +376,7 @@ async def get_generations_list(
         _GENERATIONS_QUERY,
         session=session,
     )
-    return [Generation(**g) for g in data["generation"]]
+    return [Generation(**generation) for generation in data["generation"]]
 
 
 # ────────────────────────────────────────────────────────────
@@ -329,6 +400,7 @@ query Modifications($model: PIntId!, $frame: CatalogFrame, $wheel: Wheel,
 """
 
 
+@_cache_catalog("model_id", "year", "frame", "generation_value", "wheel")
 async def get_modifications_list(
     model_id: int,
     year: int,
@@ -349,7 +421,7 @@ async def get_modifications_list(
         _MODIFICATIONS_QUERY,
         session=session,
     )
-    return [Modification(**m) for m in data["modification"]]
+    return [Modification(**modification) for modification in data["modification"]]
 
 
 # ────────────────────────────────────────────────────────────

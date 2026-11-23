@@ -39,10 +39,19 @@ All parameters are passed as query parameters:
 | `GET /rate-car/modifications` | `model_id`, `year`, `frame`, `generation_id`, `wheel` |
 | `GET /rate-car/price-change-chart` | `firm_id`, `model_id`, `year`, `modification_id`, `generation_number`, `restyling_number`, `wheel`, `frame`, `region_id` |
 | `GET /rate-car/similar-cars` | `firm_id`, `model_id`, `year`, `modification_id`, `generation_number`, `restyling_number`, `wheel`, `frame`, `region_id` |
+| `GET /rate-car/combined` | `firm_id`, `model_id`, `year`, `modification_id`, `generation_number`, `restyling_number`, `wheel`, `frame`, `region_id`, `import_purpose` |
+
+`/rate-car/combined` returns `price_change_chart`, `similar_cars`, and
+`auctions` together with `japan_import_response`. The auction filters are
+derived from the firm, model, year, and engine displacement parsed from the
+selected modification. `import_purpose` accepts `USAGE` or `RESALE`.
+If no positive auction prices are available, `japan_import_response` is `null`;
+the other combined results are still returned.
 
 `wheel` accepts `UNDEFINED`, `LEFT`, `RIGHT`, or `LEFT_OR_RIGHT`. The models
 endpoint also accepts `region_id`, `only_catalog`, and `with_special`;
 frames accepts `with_special` and `with_other_frame`.
+Catalog responses are cached in process memory for 24 hours.
 
 ## Run with Docker Compose
 

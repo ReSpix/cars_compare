@@ -146,6 +146,11 @@ class SimilarCars(DromCatalogModel):
     searchLink: str
     myCarAddToDraftLink: str | None = None
 
+    @field_validator("bulls", mode="before")
+    @classmethod
+    def validate_bulls(cls, v: Any) -> Any:
+        return [] if v is None else v
+
 
 class Currency(str, Enum):
     YEN = "YEN"
@@ -258,3 +263,10 @@ class JapanImportResponse(DromJapanModel):
     calculator_api: str = Field(alias="calculatorApi")
     currency_options: list[Currency] = Field(alias="currencyOptions")
     import_country: str = Field(alias="importCountry")
+
+
+class CombinedCarRateResponse(BaseModel):
+    price_change_chart: PriceChangeChart
+    similar_cars: SimilarCars
+    auctions: AuctionResponse
+    japan_import_response: JapanImportResponse | None = None

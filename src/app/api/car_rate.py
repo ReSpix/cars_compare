@@ -11,9 +11,12 @@ from app.parser.car_rate import (
     get_similar_cars,
     get_years_list,
 )
+from app.parser.combined_compare import get_combined_compare
 from app.schemas import (
+    CombinedCarRateResponse,
     Firm,
     Generation,
+    ImportPurpose,
     Model,
     Modification,
     PriceChangeChart,
@@ -165,3 +168,35 @@ async def similar_cars(
         frame=frame,
         region_id=region_id,
     )
+
+
+@router.get("/combined", response_model=CombinedCarRateResponse)
+async def combined_car_rate(
+    firm_id: int,
+    model_id: int,
+    year: int,
+    modification_id: int,
+    generation_number: int,
+    restyling_number: int,
+    wheel: Wheel,
+    frame: str,
+    region_id: int,
+    import_purpose: ImportPurpose,
+) -> CombinedCarRateResponse:
+    try:
+        return await get_combined_compare(
+            firm_id=firm_id,
+            model_id=model_id,
+            year=year,
+            modification_id=modification_id,
+            generation_number=generation_number,
+            restyling_number=restyling_number,
+            wheel=wheel,
+            frame=frame,
+            region_id=region_id,
+            import_purpose=import_purpose,
+        )
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
