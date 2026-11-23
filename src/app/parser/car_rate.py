@@ -187,7 +187,7 @@ query Models($firm: PIntId!, $regionId: Int, $onlyCatalog: Boolean!, $withSpecia
 
 async def get_models_list(
     firm_id: int,
-    region_id: int,
+    region_id: int = 0,
     only_catalog: bool = True,
     with_special: bool = False,
     session: aiohttp.ClientSession | None = None,
