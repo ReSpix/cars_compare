@@ -62,6 +62,13 @@ async def parse_drom(
     return cars
 
 
+async def parse_auction(
+    url: str, session: aiohttp.ClientSession | None = None
+) -> list[Car]:
+    """Parse a Drom Japan auction listing."""
+    return await parse_drom(url=url, session=session)
+
+
 def get_url(
     firm: str, model: str, year: int | None = None, engine_volume: int | None = None
 ):

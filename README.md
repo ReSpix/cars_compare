@@ -10,6 +10,21 @@ uv run uvicorn app.main:app --app-dir src --reload
 The health endpoint is available at [http://localhost:8000/health](http://localhost:8000/health).
 The rate-car API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
 
+## Auction endpoints
+
+| Endpoint | Required parameters |
+| --- | --- |
+| `GET /auctions` | `firm`, `model` |
+
+`year` and `engine_volume` are optional filters:
+
+```text
+GET /auctions?firm=toyota&model=aqua&year=2020&engine_volume=1500
+```
+
+The response contains `query`, matching `examples`, and `avg_price` as an integer
+average of all JPY prices available in the examples.
+
 ## Rate-car endpoints
 
 All parameters are passed as query parameters:

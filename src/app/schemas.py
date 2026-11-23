@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Region(BaseModel):
@@ -69,6 +69,29 @@ class Car(BaseModel):
                 "url": data.get("url"),
             }
         )
+
+
+class AuctionQuery(BaseModel):
+    firm: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    year: int | None = Field(default=None, ge=1900, le=2100)
+    engine_volume: int | None = Field(default=None, ge=1)
+
+
+class AuctionResponse(BaseModel):
+    query: AuctionQuery
+    examples: list[Car]
+    avg_price_jpy: int = 0
+
+    @model_validator(mode="after")
+    def calculate_average_price(self) -> "AuctionResponse":
+        prices = [
+            car.price_jpy
+            for car in self.examples
+            if car.price_jpy is not None and car.price_jpy > 0
+        ]
+        self.avg_price_jpy = sum(prices) // len(prices) if prices else 0
+        return self
 
 
 Wheel = Literal["UNDEFINED", "LEFT", "RIGHT", "LEFT_OR_RIGHT"]
