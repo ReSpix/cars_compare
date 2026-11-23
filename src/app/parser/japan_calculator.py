@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import json
-from decimal import Decimal
-from enum import Enum
-from typing import Any
 
 import aiohttp
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
+
+from app.schemas import (
+    Currency,
+    EngineType,
+    ImportPurpose,
+    JapanImportRequest,
+    JapanImportResponse,
+    Money,
+    MoneyRange,
+    VehicleAge,
+)
 
 # ============================================================
 # CONFIG
@@ -16,194 +24,6 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 API_URL = "https://www.drom.ru/api/world/calculate/japan/"
 
 DEFAULT_TIMEOUT = 20
-
-
-# ============================================================
-# ENUMS
-# ============================================================
-
-
-class Currency(str, Enum):
-    YEN = "YEN"
-    EUR = "EUR"
-    USD = "USD"
-
-
-class VehicleAge(str, Enum):
-    UNDER_3 = "UNDER_3"
-    FROM_3_TO_5 = "FROM_3_TO_5"
-    OVER_5 = "OVER_5"
-
-
-class EngineType(str, Enum):
-    DIESEL_OR_GASOLINE = "DIESEL_OR_GASOLINE"
-    ELECTRIC_MOTOR = "ELECTRIC_MOTOR"
-
-
-class ImportPurpose(str, Enum):
-    USAGE = "USAGE"
-    RESALE = "RESALE"
-
-
-# ============================================================
-# BASE MODEL
-# ============================================================
-
-
-class DromModel(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,
-        extra="allow",
-    )
-
-
-# ============================================================
-# REQUEST
-# ============================================================
-
-
-class JapanImportRequest(DromModel):
-    price: int = Field(gt=0)
-
-    currency: Currency
-
-    vehicle_age: VehicleAge = Field(alias="vehicleAge")
-
-    engine_type: EngineType = Field(alias="engineType")
-
-    engine_volume: int = Field(
-        alias="engineVolumeInCubicCentimeters",
-        gt=0,
-    )
-
-    engine_horse_power: int = Field(
-        alias="engineHorsePower",
-        gt=0,
-    )
-
-    import_purpose: ImportPurpose = Field(alias="importPurpose")
-
-    def to_params(self) -> dict[str, str]:
-        """Преобразует модель в GET-параметры API."""
-        data = self.model_dump(
-            by_alias=True,
-            mode="json",
-        )
-
-        return {key: str(value) for key, value in data.items()}
-
-
-# ============================================================
-# COMMON RESPONSE MODELS
-# ============================================================
-
-
-class Money(DromModel):
-    currency: str
-    value: Decimal
-
-
-class MoneyRange(DromModel):
-    left: Money
-    right: Money
-
-
-class CurrencyRate(DromModel):
-    currency: str
-    value: Decimal
-    multiplied_by: int | None = Field(
-        default=None,
-        alias="multipliedBy",
-    )
-
-
-class CentralBankCurrencyRate(DromModel):
-    date: str
-    form: dict[str, CurrencyRate]
-
-
-class JapanForm(DromModel):
-    price: str
-    currency: Currency
-    vehicle_age: VehicleAge = Field(alias="vehicleAge")
-    engine_type: EngineType = Field(alias="engineType")
-
-    engine_volume: str = Field(alias="engineVolumeInCubicCentimeters")
-
-    engine_horse_power: str = Field(alias="engineHorsePower")
-
-    import_purpose: ImportPurpose = Field(alias="importPurpose")
-
-
-# ============================================================
-# CALCULATION DETAILS
-# ============================================================
-
-
-class PriceComponent(DromModel):
-    """
-    Одна статья расходов.
-
-    alt   — сумма в альтернативной валюте.
-    major — сумма в основной валюте либо диапазон.
-    """
-
-    alt: Money | None = None
-    major: Money | MoneyRange | None = None
-
-
-class JapanCalculationDetails(DromModel):
-    PRICE: PriceComponent | None = None
-    SPENDING_ABROAD: PriceComponent | None = None
-    FREIGHT_TO_VLADIVOSTOK: PriceComponent | None = None
-    SPENDING_TO_VLADIVOSTOK: PriceComponent | None = None
-    REGISTRATION_COSTS: PriceComponent | None = None
-    COMPANY_COMMISSION: PriceComponent | None = None
-    CUSTOMS_DUTY: PriceComponent | None = None
-    EXCISE_TAX: PriceComponent | None = None
-    CUSTOMS_FEE: PriceComponent | None = None
-    RECYCLING_FEE: PriceComponent | None = None
-    VAT: PriceComponent | None = None
-    SPENDING_AND_REGISTRATION: PriceComponent | None = None
-    CUSTOMS_DUTY_AND_FEES: PriceComponent | None = None
-
-
-# ============================================================
-# RESULT
-# ============================================================
-
-
-class JapanCalculationResult(DromModel):
-    total_price: Money = Field(alias="totalPrice")
-    details: JapanCalculationDetails
-
-
-# ============================================================
-# FULL RESPONSE
-# ============================================================
-
-
-class JapanImportResponse(DromModel):
-    currency_rate: Any | None = Field(
-        default=None,
-        alias="currencyRate",
-    )
-
-    central_bank_currency_rate: CentralBankCurrencyRate | None = Field(
-        default=None,
-        alias="centralBankCurrencyRate",
-    )
-
-    form: JapanForm
-
-    result: JapanCalculationResult
-
-    calculator_api: str = Field(alias="calculatorApi")
-
-    currency_options: list[Currency] = Field(alias="currencyOptions")
-
-    import_country: str = Field(alias="importCountry")
-
 
 # ============================================================
 # API CLIENT

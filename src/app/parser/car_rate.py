@@ -1,77 +1,26 @@
 """
-drom_rate_car.py — полный проход каскада Drom rate_car (pydantic v2).
-
 Цепочка:
     firms → models → years → frames → generations → modifications → rate-car
-
-Все параметры явные — никаких значений по умолчанию.
-
-Важно: FRAME_TO_INT пополняется по мере обнаружения новых кузовов.
-Известные: SEDAN → 5. Для остальных — ValueError до тех пор, пока не добавите.
 """
 
 import asyncio
-from typing import Any, Literal
+from typing import Any
 
 import aiohttp
-from pydantic import BaseModel
 
-# ────────────────────────────────────────────────────────────
-# Модели данных
-# ────────────────────────────────────────────────────────────
-
-Wheel = Literal["LEFT", "RIGHT", "LEFT_OR_RIGHT"]
-
-
-class DromModel(BaseModel):
-    model_config = {"extra": "ignore"}
-
-
-class Firm(DromModel):
-    id: int
-    title: str
-
-
-class Model(DromModel):
-    id: int
-    title: str
-    wheels: list[Wheel]
-
-
-class Generation(DromModel):
-    id: str
-    value: str
-    title: str
-    periodTitle: str
-    generationNumber: int
-    generationTitle: str
-    restylingNumber: int
-    restylingTitle: str
-    frameTitle: str
-
-
-class Modification(DromModel):
-    id: int
-    title: str
-
-
-class Bull(DromModel):
-    url: str
-    src: str | None = None
-    src2x: str | None = None
-    price: int
-
-
-class PriceChangeChart(DromModel):
-    recommendedPrice: int
-    averageSaleDays: int
-
-
-class SimilarCars(DromModel):
-    bulls: list[Bull]
-    searchLink: str
-    myCarAddToDraftLink: str | None = None
-
+from app.schemas import (
+    Bull,
+    Firm,
+    Generation,
+    Model,
+    Modification,
+    PriceChangeChart,
+    SimilarCars,
+    Wheel,
+)
+from app.schemas import (
+    DromCatalogModel as DromModel,
+)
 
 # ────────────────────────────────────────────────────────────
 # Конфигурация
@@ -100,8 +49,13 @@ HEADERS_REST = {
     "User-Agent": _UA,
 }
 
-WHEEL_TO_INT = {"UNDEFINED": 0, "LEFT": 1, "RIGHT": 2, "LEFT_OR_RIGHT": 3}
-FRAME_TO_INT = {
+WHEEL_TO_INT: dict[Wheel, int] = {
+    "UNDEFINED": 0,
+    "LEFT": 1,
+    "RIGHT": 2,
+    "LEFT_OR_RIGHT": 3,
+}
+FRAME_TO_INT: dict[str, int] = {
     "other": 0,
     "OPEN": 1,
     "COUPE": 2,
@@ -505,6 +459,7 @@ async def get_similar_cars(
 # ────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+
     async def main() -> None:
         REGION_ID = 25
         WHEEL: Wheel = "LEFT"

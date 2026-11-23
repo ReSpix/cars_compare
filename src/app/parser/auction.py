@@ -1,71 +1,10 @@
 import asyncio
 import json
-import re
-from typing import Any
 
 import aiohttp
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-class Car(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    model: str = Field(alias="name")
-    year: int | None = Field(default=None, alias="productionDate")
-    engine_volume: int | None = None
-    mileage: int | None = None
-    rating: float | None = None
-    price_jpy: int | None = None
-    url: str | None = None
-
-    @field_validator("year", mode="before")
-    @classmethod
-    def parse_year(cls, value: Any) -> Any:
-        if value is None:
-            return None
-        return int(value)
-
-    @field_validator("engine_volume", "mileage", mode="before")
-    @classmethod
-    def parse_integer(cls, value: Any) -> int | None:
-        if value is None:
-            return None
-
-        digits = re.sub(r"\D", "", str(value))
-        return int(digits) if digits else None
-
-    @field_validator("rating", mode="before")
-    @classmethod
-    def parse_rating(cls, value: Any) -> Any:
-        return float(value) if value is not None else None
-
-    @classmethod
-    def from_json_ld(cls, data: dict) -> "Car":
-        engine = data.get("vehicleEngine") or {}
-        mileage = data.get("mileageFromOdometer") or {}
-        rating = data.get("aggregateRating") or {}
-
-        offers = data.get("offers") or []
-
-        if isinstance(offers, dict):
-            offers = [offers]
-
-        jpy_offer = next(
-            (offer for offer in offers if offer.get("priceCurrency") == "JPY"), None
-        )
-
-        return cls.model_validate(
-            {
-                "name": data.get("name"),
-                "productionDate": data.get("productionDate"),
-                "engine_volume": (engine.get("engineDisplacement")),
-                "mileage": mileage.get("value"),
-                "rating": rating.get("ratingValue"),
-                "price_jpy": (jpy_offer.get("price") if jpy_offer else None),
-                "url": data.get("url"),
-            }
-        )
+from app.schemas import Car
 
 
 async def parse_drom(
