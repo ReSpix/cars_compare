@@ -90,6 +90,7 @@ _T = TypeVar("_T")
 # Хелперы
 # ────────────────────────────────────────────────────────────
 
+
 async def _get_cached_catalog(
     key: tuple[Any, ...],
     loader: Callable[[], Awaitable[_T]],
@@ -218,7 +219,7 @@ async def get_firms_list(
 ) -> list[Firm]:
     data = await _gql("Firms", {}, _FIRMS_QUERY, session=session)
     firms = data["firms"]
-    return [Firm(**item) for item in _dedup_by_id(firms["topItems"] + firms["items"])]
+    return [Firm(**item) for item in firms["topItems"] + firms["items"]]
 
 
 # ────────────────────────────────────────────────────────────
@@ -262,7 +263,7 @@ async def get_models_list(
         session=session,
     )
     models = data["model"]
-    return [Model(**item) for item in _dedup_by_id(models["topItems"] + models["items"])]
+    return [Model(**item) for item in models["topItems"] + models["items"]]
 
 
 # ────────────────────────────────────────────────────────────
@@ -514,21 +515,25 @@ async def get_price_change_chart(
         modification_id=modification_id,
         session=session,
     )
-    raw = await _rest_get(
-        "price-change-chart",
-        _rate_params(
-            firm_id,
-            model_id,
-            year,
-            modification_id,
-            generation.generationNumber,
-            generation.restylingNumber,
-            wheel,
-            frame,
-            region_id,
-        ),
-        session=session,
-    )
+    try:
+        raw = await _rest_get(
+            "price-change-chart",
+            _rate_params(
+                firm_id,
+                model_id,
+                year,
+                modification_id,
+                generation.generationNumber,
+                generation.restylingNumber,
+                wheel,
+                frame,
+                region_id,
+            ),
+            session=session,
+        )
+    except aiohttp.ClientResponseError as err:
+        return PriceChangeChart(recommendedPrice=None, averageSaleDays=None)
+
     return PriceChangeChart(**raw)
 
 

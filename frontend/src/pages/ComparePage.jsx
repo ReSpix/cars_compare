@@ -172,25 +172,34 @@ export default function ComparePage() {
     ''
   const domesticPrice = Number(chart?.recommendedPrice)
   const importPrice = Number(importTotal?.value)
-  const hasComparablePrices =
+  const hasDomesticPrice =
     chart?.recommendedPrice != null &&
-    importTotal?.value != null &&
     Number.isFinite(domesticPrice) &&
-    Number.isFinite(importPrice)
-  const domesticPriceTone = hasComparablePrices
-    ? domesticPrice > importPrice
-      ? 'text-brand'
-      : domesticPrice < importPrice
-        ? 'text-green-600'
-        : 'text-dark'
-    : 'text-dark'
-  const importPriceTone = hasComparablePrices
-    ? importPrice > domesticPrice
-      ? 'text-brand'
-      : importPrice < domesticPrice
-        ? 'text-green-600'
-        : 'text-dark'
-    : 'text-dark'
+    domesticPrice > 0
+  const hasImportPrice =
+    importTotal?.value != null &&
+    Number.isFinite(importPrice) &&
+    importPrice > 0
+  const hasComparablePrices =
+    hasDomesticPrice && hasImportPrice
+  const domesticPriceTone = !hasDomesticPrice
+    ? 'text-dark'
+    : !hasImportPrice
+      ? 'text-green-600'
+      : domesticPrice > importPrice
+        ? 'text-brand'
+        : domesticPrice < importPrice
+          ? 'text-green-600'
+          : 'text-dark'
+  const importPriceTone = !hasImportPrice
+    ? 'text-dark'
+    : !hasDomesticPrice
+      ? 'text-green-600'
+      : importPrice > domesticPrice
+        ? 'text-brand'
+        : importPrice < domesticPrice
+          ? 'text-green-600'
+          : 'text-dark'
 
   return (
     <div id="top">
@@ -339,7 +348,10 @@ export default function ComparePage() {
             {degraded && <DegradedBanner text={degradedReason} />}
 
             {/* Оценка цены */}
-            {(chart || importTotal) && (
+            {(chart ||
+              importTotal ||
+              availability?.price_change_chart ||
+              availability?.japan_import_response) && (
               <Section
                 id="assessment"
                 icon={TrendingUp}
@@ -355,7 +367,7 @@ export default function ComparePage() {
                     </div>
                     <div className="flex items-center gap-2 text-4xl font-extrabold tracking-tight">
                       <span className={domesticPriceTone}>
-                        {chart?.recommendedPrice
+                        {hasDomesticPrice
                           ? `${formatNumber(chart.recommendedPrice)} ₽`
                           : 'Нет данных'}
                       </span>
@@ -372,6 +384,11 @@ export default function ComparePage() {
                         />
                       )}
                     </div>
+                    {!hasDomesticPrice && (
+                      <p className="text-sm font-semibold text-red-600 mt-3">
+                        Похоже это редкая машина: не нашли ее в России
+                      </p>
+                    )}
                     <p className="text-xs text-muted mt-3">
                       Оценка по фактическим продажам в выбранном регионе
                     </p>
@@ -386,7 +403,7 @@ export default function ComparePage() {
                     </div>
                     <div className="flex items-center gap-2 text-4xl font-extrabold tracking-tight">
                       <span className={importPriceTone}>
-                        {importTotal ? formatMoney(importTotal) : 'Нет данных'}
+                        {hasImportPrice ? formatMoney(importTotal) : 'Нет данных'}
                       </span>
                       {hasComparablePrices && importPrice > domesticPrice && (
                         <ArrowUp
@@ -401,6 +418,11 @@ export default function ComparePage() {
                         />
                       )}
                     </div>
+                    {!hasImportPrice && (
+                      <p className="text-sm font-semibold text-red-600 mt-3">
+                        Похоже, эту машину не привезти из Японии: не нашли аукционные лоты
+                      </p>
+                    )}
                     <p className="text-xs text-muted mt-3">
                       Полная стоимость автомобиля после доставки и оформления
                     </p>
