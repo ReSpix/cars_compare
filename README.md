@@ -25,14 +25,13 @@ docker compose up --build
 docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
-В обычном режиме API доступно на порту `8000`, веб-интерфейс — на порту `8080`. Интерфейс проксирует запросы к API внутри Docker-сети.
-В режиме разработки интерфейс доступен на порту `5173`.
+В обычном режиме API доступно на порту `8000`, веб-интерфейс — на порту `80`. Интерфейс проксирует запросы к API внутри Docker-сети.
 
 ## Документация и проверка работы
 
 - Интерактивная документация API (Swagger UI): [http://localhost:8000/docs](http://localhost:8000/docs)
 - Проверка доступности сервиса: [http://localhost:8000/health](http://localhost:8000/health)
-- Веб-интерфейс: [http://localhost:8080](http://localhost:8080) (или [http://localhost:5173](http://localhost:5173) в режиме разработки)
+- Веб-интерфейс: [http://localhost:80](http://localhost:80)
 
 Список операций, параметры и форматы ответов смотрите в Swagger: документация строится FastAPI по текущей схеме API.
 

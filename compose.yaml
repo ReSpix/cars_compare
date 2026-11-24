@@ -20,7 +20,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - "8080:80"
+      - "80:5173"
     depends_on:
       api:
         condition: service_healthy
