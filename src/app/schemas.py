@@ -21,6 +21,7 @@ class Car(BaseModel):
     rating: float | None = None
     price_jpy: int | None = None
     url: str | None = None
+    image_url: str | None = None
 
     @field_validator("year", mode="before")
     @classmethod
@@ -79,6 +80,7 @@ class Car(BaseModel):
                 "rating": rating.get("ratingValue"),
                 "price_jpy": jpy_offer.get("price") if jpy_offer else None,
                 "url": data.get("url"),
+                "image_url": (data.get("image", {}).get("url", None)),
             }
         )
 
