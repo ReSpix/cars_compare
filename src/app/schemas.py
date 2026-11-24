@@ -143,8 +143,8 @@ class Bull(DromCatalogModel):
 
 
 class PriceChangeChart(DromCatalogModel):
-    recommendedPrice: int
-    averageSaleDays: int
+    recommendedPrice: int | None
+    averageSaleDays: int | None
 
 
 class SimilarCars(DromCatalogModel):

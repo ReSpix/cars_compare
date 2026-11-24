@@ -113,12 +113,7 @@ async def get_combined_compare(
             year=year,
             engine_volume=engine_volume,
         )
-        auction_url = get_url(
-            firm=auction_firm,
-            model=auction_model,
-            year=year,
-            engine_volume=engine_volume,
-        )
+        auction_url = get_url(auction_query)
 
         async with asyncio.TaskGroup() as tasks:
             price_change_task = tasks.create_task(
@@ -165,9 +160,7 @@ async def get_combined_compare(
         japan_missing_fields = []
         if price <= 0:
             japan_missing_fields.append("price")
-        if not is_electric and (
-            engine_volume is None or engine_volume <= 0
-        ):
+        if not is_electric and (engine_volume is None or engine_volume <= 0):
             japan_missing_fields.append("engine_volume")
         if engine_horse_power is None or engine_horse_power <= 0:
             japan_missing_fields.append("engine_horse_power")
@@ -188,10 +181,7 @@ async def get_combined_compare(
             and engine_horse_power is not None
             and engine_horse_power > 0
             and engine_type is not None
-            and (
-                is_electric
-                or (engine_volume is not None and engine_volume > 0)
-            )
+            and (is_electric or (engine_volume is not None and engine_volume > 0))
         ):
             japan_import_request = JapanImportRequest(
                 price_jpy=price,
@@ -202,9 +192,9 @@ async def get_combined_compare(
                 engineHorsePower=engine_horse_power,
                 importPurpose=query.import_purpose,
             )
-            japan_import_response = await DromJapanCalculator(session=session).calculate(
-                japan_import_request
-            )
+            japan_import_response = await DromJapanCalculator(
+                session=session
+            ).calculate(japan_import_request)
 
         results_availability = CombinedResultsAvailability(
             price_change_chart=ResultAvailability(available=True),
