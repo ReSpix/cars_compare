@@ -184,7 +184,7 @@ async def get_combined_compare(
             and (is_electric or (engine_volume is not None and engine_volume > 0))
         ):
             japan_import_request = JapanImportRequest(
-                price_jpy=price,
+                price=price,
                 currency=Currency.YEN,
                 vehicleAge=_vehicle_age_from_year(year),
                 engineType=engine_type,

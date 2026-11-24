@@ -83,7 +83,7 @@ class DromJapanCalculator:
             try:
                 return JapanImportResponse.model_validate(data)
             except ValidationError as exc:
-                raise RuntimeError(f"Не удалось разобрать ответ Drom API:\n{exc}") from exc
+                raise RuntimeError(f"Не удалось разобрать ответ Drom API {request}:\n{exc}\n{data}") from exc
         finally:
             if owns_session:
                 await session.close()
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         calculator = DromJapanCalculator()
 
         request = JapanImportRequest(
-            price_jpy=1_000_000,
+            price=1_000_000,
             currency=Currency.YEN,
             vehicleAge=VehicleAge.FROM_3_TO_5,
             engineType=EngineType.DIESEL_OR_GASOLINE,

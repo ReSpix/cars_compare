@@ -44,17 +44,29 @@ class Car(BaseModel):
         return float(value) if value is not None else None
 
     @classmethod
-    def from_json_ld(cls, data: dict) -> "Car":
-        engine = data.get("vehicleEngine") or {}
-        mileage = data.get("mileageFromOdometer") or {}
-        rating = data.get("aggregateRating") or {}
+    def from_json_ld(cls, data: dict[str, Any]) -> "Car":
+        if not isinstance(data, dict):
+            raise ValueError("Car JSON-LD must be an object")
+
+        engine = data.get("vehicleEngine")
+        engine = engine if isinstance(engine, dict) else {}
+        mileage = data.get("mileageFromOdometer")
+        mileage = mileage if isinstance(mileage, dict) else {}
+        rating = data.get("aggregateRating")
+        rating = rating if isinstance(rating, dict) else {}
 
         offers = data.get("offers") or []
         if isinstance(offers, dict):
             offers = [offers]
+        elif not isinstance(offers, list):
+            offers = []
 
         jpy_offer = next(
-            (offer for offer in offers if offer.get("priceCurrency") == "JPY"),
+            (
+                offer
+                for offer in offers
+                if isinstance(offer, dict) and offer.get("priceCurrency") == "JPY"
+            ),
             None,
         )
 
@@ -143,12 +155,12 @@ class Bull(DromCatalogModel):
 
 
 class PriceChangeChart(DromCatalogModel):
-    recommendedPrice: int | None
-    averageSaleDays: int | None
+    recommendedPrice: int | None = None
+    averageSaleDays: int | None = None
 
 
 class SimilarCars(DromCatalogModel):
-    bulls: list[Bull]
+    bulls: list[Bull] = Field(default_factory=list)
     searchLink: str
     myCarAddToDraftLink: str | None = None
 
@@ -248,7 +260,7 @@ class DromJapanModel(BaseModel):
 
 
 class JapanImportRequest(DromJapanModel):
-    price_jpy: int = Field(gt=0)
+    price: int = Field(gt=0, description="Price in JPY")
     currency: Currency
     vehicle_age: VehicleAge = Field(alias="vehicleAge")
     engine_type: EngineType = Field(alias="engineType")
