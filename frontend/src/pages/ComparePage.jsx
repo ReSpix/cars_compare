@@ -164,6 +164,12 @@ export default function ComparePage() {
   const auctions = shownReport?.auctions
   const similar = shownReport?.similar_cars
   const importTotal = shownReport?.japan_import_response?.result?.totalPrice
+  const lotPrice =
+    shownReport?.japan_import_response?.form?.price ??
+    shownReport?.query?.price ??
+    auctions?.avg_price_jpy ??
+    selection.price ??
+    ''
   const domesticPrice = Number(chart?.recommendedPrice)
   const importPrice = Number(importTotal?.value)
   const hasComparablePrices =
@@ -293,8 +299,8 @@ export default function ComparePage() {
                     </div>
                   </div>
                   <PriceControl
-                    key={`${selection.firmId}-${selection.modelId}-${selection.modificationId}`}
-                    initial={selection.price}
+                    key={`${selection.firmId}-${selection.modelId}-${selection.modificationId}-${lotPrice}`}
+                    initial={lotPrice}
                     onApply={(value) => patchParams({ price: value })}
                   />
                 </div>

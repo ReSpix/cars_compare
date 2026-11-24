@@ -1,4 +1,4 @@
-import { Car, FileJson } from 'lucide-react'
+import { Car } from 'lucide-react'
 
 const SECTIONS = [
   { id: 'assessment', label: 'Оценка цены' },
@@ -38,15 +38,6 @@ export default function Header() {
             ))}
           </nav>
 
-          <a
-            href="/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand border border-brand-soft rounded-lg px-3 py-2 hover:bg-brand-light no-underline transition-colors"
-          >
-            <FileJson className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">API</span>
-          </a>
         </div>
       </div>
     </header>

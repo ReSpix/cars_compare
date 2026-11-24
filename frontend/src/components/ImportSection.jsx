@@ -264,11 +264,20 @@ export default function ImportSection({ data }) {
             <Param label="Двигатель" value={engineTypeLabel(data.form.engineType)} />
             <Param
               label="Объём"
-              value={
-                data.form.engineVolumeInCubicCentimeters
-                  ? `${formatNumber(data.form.engineVolumeInCubicCentimeters)} см³`
-                  : '—'
-              }
+              value={data.form.engineVolumeInCubicCentimeters ? (
+                <>
+                  <span>
+                    {formatNumber(
+                      Number(data.form.engineVolumeInCubicCentimeters) / 1000,
+                      1,
+                    )}{' '}
+                    л
+                  </span>{' '}
+                  <span className="text-muted font-normal">
+                    ({formatNumber(data.form.engineVolumeInCubicCentimeters)} см³)
+                  </span>
+                </>
+              ) : '—'}
             />
             <Param
               label="Мощность"

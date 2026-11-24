@@ -6,7 +6,7 @@ export default function Footer() {
   return (
     <footer className="bg-darker text-white/70 mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
@@ -26,21 +26,36 @@ export default function Footer() {
               В отчёте
             </h4>
             <ul className="space-y-2 text-sm">
-              <li>Рекомендованная цена и срок продажи</li>
-              <li>Лоты японских аукционов и средняя цена в йенах</li>
-              <li>Пошлины, утильсбор, НДС и доставка</li>
-              <li>Актуальные курсы ЦБ РФ</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wider">
-              Данные
-            </h4>
-            <ul className="space-y-2 text-sm">
-              <li>Каталог марок, моделей и модификаций</li>
-              <li>Поколения, рестайлинги и типы кузова</li>
-              <li>85 регионов России</li>
-              <li>Кеширование каталога 24 часа</li>
+              <li>
+                <a
+                  href="https://auto.drom.ru/rate_car/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  Рекомендованная цена
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.drom.ru/world/japan/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  Лоты японских аукционов
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.drom.ru/world/calculator/japan/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  Калькулятор стоимости привоза
+                </a>
+              </li>
             </ul>
           </div>
         </div>
