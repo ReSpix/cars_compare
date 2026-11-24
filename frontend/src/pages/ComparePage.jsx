@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
+  ArrowDown,
+  ArrowUp,
   TrendingUp,
-  Timer,
   Ship,
   Gavel,
   Images,
@@ -25,7 +26,7 @@ import {
   Section,
 } from '../components/StateBlocks'
 import { buildReport } from '../services/report'
-import { formatNumber } from '../utils/format'
+import { formatMoney, formatNumber } from '../utils/format'
 import {
   AVAILABILITY_LABELS,
   FRAME_LABELS,
@@ -162,6 +163,28 @@ export default function ComparePage() {
   const chart = shownReport?.price_change_chart
   const auctions = shownReport?.auctions
   const similar = shownReport?.similar_cars
+  const importTotal = shownReport?.japan_import_response?.result?.totalPrice
+  const domesticPrice = Number(chart?.recommendedPrice)
+  const importPrice = Number(importTotal?.value)
+  const hasComparablePrices =
+    chart?.recommendedPrice != null &&
+    importTotal?.value != null &&
+    Number.isFinite(domesticPrice) &&
+    Number.isFinite(importPrice)
+  const domesticPriceTone = hasComparablePrices
+    ? domesticPrice > importPrice
+      ? 'text-brand'
+      : domesticPrice < importPrice
+        ? 'text-green-600'
+        : 'text-dark'
+    : 'text-dark'
+  const importPriceTone = hasComparablePrices
+    ? importPrice > domesticPrice
+      ? 'text-brand'
+      : importPrice < domesticPrice
+        ? 'text-green-600'
+        : 'text-dark'
+    : 'text-dark'
 
   return (
     <div id="top">
@@ -198,12 +221,7 @@ export default function ComparePage() {
       {/* ─── Форма поиска ───────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 -mt-20 relative z-10">
         <div className="bg-white rounded-2xl border border-border shadow-2xl shadow-black/10 p-5 md:p-6">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="font-bold text-dark">Выберите автомобиль</h2>
-            <span className="text-xs text-muted hidden sm:inline">
-              каталог Drom · кеш 24 часа
-            </span>
-          </div>
+          <h2 className="font-bold text-dark mb-4">Выберите автомобиль</h2>
           <CarSearchForm onSubmit={applySelection} />
         </div>
       </div>
@@ -315,45 +333,70 @@ export default function ComparePage() {
             {degraded && <DegradedBanner text={degradedReason} />}
 
             {/* Оценка цены */}
-            {chart && (
+            {(chart || importTotal) && (
               <Section
                 id="assessment"
                 icon={TrendingUp}
                 title="Оценка стоимости"
-                subtitle="Рекомендованная цена и срок продажи по региону"
+                subtitle="Цена автомобиля в России и полная стоимость привоза"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-br from-brand to-brand-dark rounded-2xl p-6 text-white shadow-lg shadow-brand/20">
-                    <div className="flex items-center gap-2 mb-3 opacity-85">
-                      <TrendingUp className="w-4 h-4" />
+                  <div className="bg-white border border-border rounded-2xl p-6">
+                    <div className="mb-3 text-muted">
                       <span className="text-xs uppercase tracking-wider font-semibold">
-                        Рекомендованная цена
+                        Цена в России
                       </span>
                     </div>
-                    <div className="text-4xl font-extrabold tracking-tight">
-                      {chart.recommendedPrice
-                        ? `${formatNumber(chart.recommendedPrice)} ₽`
-                        : 'Нет данных'}
+                    <div className="flex items-center gap-2 text-4xl font-extrabold tracking-tight">
+                      <span className={domesticPriceTone}>
+                        {chart?.recommendedPrice
+                          ? `${formatNumber(chart.recommendedPrice)} ₽`
+                          : 'Нет данных'}
+                      </span>
+                      {hasComparablePrices && domesticPrice > importPrice && (
+                        <ArrowUp
+                          className="w-6 h-6 text-brand shrink-0"
+                          aria-label="Цена выше"
+                        />
+                      )}
+                      {hasComparablePrices && domesticPrice < importPrice && (
+                        <ArrowDown
+                          className="w-6 h-6 text-green-600 shrink-0"
+                          aria-label="Цена ниже"
+                        />
+                      )}
                     </div>
-                    <p className="text-xs opacity-70 mt-3">
-                      Расчёт по фактическим продажам в выбранном регионе
+                    <p className="text-xs text-muted mt-3">
+                      Оценка по фактическим продажам в выбранном регионе
                     </p>
                   </div>
 
                   <div className="bg-white border border-border rounded-2xl p-6">
                     <div className="flex items-center gap-2 mb-3 text-muted">
-                      <Timer className="w-4 h-4 text-brand" />
+                      <Ship className="w-4 h-4 text-brand" />
                       <span className="text-xs uppercase tracking-wider font-semibold">
-                        Среднее время продажи
+                        Цена привоза
                       </span>
                     </div>
-                    <div className="text-4xl font-extrabold text-dark tracking-tight">
-                      {chart.averageSaleDays
-                        ? `${chart.averageSaleDays} дн.`
-                        : 'Нет данных'}
+                    <div className="flex items-center gap-2 text-4xl font-extrabold tracking-tight">
+                      <span className={importPriceTone}>
+                        {importTotal ? formatMoney(importTotal) : 'Нет данных'}
+                      </span>
+                      {hasComparablePrices && importPrice > domesticPrice && (
+                        <ArrowUp
+                          className="w-6 h-6 text-brand shrink-0"
+                          aria-label="Цена выше"
+                        />
+                      )}
+                      {hasComparablePrices && importPrice < domesticPrice && (
+                        <ArrowDown
+                          className="w-6 h-6 text-green-600 shrink-0"
+                          aria-label="Цена ниже"
+                        />
+                      )}
                     </div>
                     <p className="text-xs text-muted mt-3">
-                      Столько в среднем машина висит в продаже по этой цене
+                      Полная стоимость автомобиля после доставки и оформления
                     </p>
                   </div>
                 </div>
@@ -401,7 +444,7 @@ export default function ComparePage() {
               title="Аукционы Японии"
               subtitle={
                 auctions
-                  ? `${auctions.examples?.length || 0} лотов · средняя цена ¥${formatNumber(auctions.avg_price_jpy) || 0}`
+                  ? `Средняя цена ¥${formatNumber(auctions.avg_price_jpy) || '—'}`
                   : 'Лоты с японских аукционов'
               }
               action={

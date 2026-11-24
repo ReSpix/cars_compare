@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Wallet, Percent } from 'lucide-react'
 import {
   componentLabel,
@@ -8,16 +9,30 @@ import {
   numericValue,
 } from '../utils/format'
 
-const SKIP_IN_TOTAL = new Set([
-  'PRICE',
-  'SPENDING_ABROAD',
-  'FREIGHT_TO_VLADIVOSTOK',
-  'SPENDING_TO_VLADIVOSTOK',
-  'REGISTRATION_COSTS',
-  'COMPANY_COMMISSION',
-  'SPENDING_AND_REGISTRATION',
-  'CUSTOMS_DUTY_AND_FEES',
-])
+const COST_GROUPS = [
+  {
+    label: 'Пошлина и сборы',
+    items: [
+      { label: 'Пошлина', names: ['CUSTOMS_DUTY'] },
+      { label: 'Таможенный сбор', names: ['CUSTOMS_FEE'] },
+      { label: 'Утилизационный сбор', names: ['RECYCLING_FEE'] },
+      { label: 'Акциз', names: ['EXCISE_TAX'] },
+      { label: 'НДС', names: ['VAT'] },
+    ],
+  },
+  {
+    label: 'Доставка и оформление',
+    items: [
+      { label: 'Расходы по Японии', names: ['SPENDING_ABROAD'] },
+      { label: 'Фрахт во Владивосток', names: ['FREIGHT_TO_VLADIVOSTOK'] },
+      {
+        label: 'Расходы по оформлению в РФ',
+        names: ['SPENDING_TO_VLADIVOSTOK', 'REGISTRATION_COSTS'],
+      },
+      { label: 'Комиссия компании', names: ['COMPANY_COMMISSION'] },
+    ],
+  },
+]
 
 export default function ImportSection({ data }) {
   const total = data?.result?.totalPrice
@@ -33,11 +48,74 @@ export default function ImportSection({ data }) {
       value: numericValue(component),
     }))
 
-  const maxValue = Math.max(...rows.map((r) => r.value || 0), 1)
-
-  const mainCosts = rows.filter(
-    (r) => !SKIP_IN_TOTAL.has(r.name) && r.value != null,
+  const rowsByName = new Map(rows.map((row) => [row.name, row]))
+  const groupedNames = new Set(
+    [
+      'PRICE',
+      'SPENDING_AND_REGISTRATION',
+      'CUSTOMS_DUTY_AND_FEES',
+      ...COST_GROUPS.flatMap((group) =>
+        group.items.flatMap((item) => item.names),
+      ),
+    ],
   )
+  const groups = COST_GROUPS.map((group) => ({
+    ...group,
+    itemRows: group.items
+      .map((item) => {
+        const itemRows = item.names
+          .map((name) => rowsByName.get(name))
+          .filter(Boolean)
+        if (itemRows.length === 0) return null
+        return {
+          key: item.names.join('-'),
+          label: item.label,
+          display: itemRows.map((row) => row.display).join(' + '),
+        }
+      })
+      .filter(Boolean),
+  })).filter((group) => group.itemRows.length > 0)
+  const otherRows = rows.filter((row) => !groupedNames.has(row.name))
+  if (otherRows.length > 0) {
+    groups.push({
+      label: 'Другие расходы',
+      itemRows: otherRows,
+    })
+  }
+  const priceRow = rowsByName.get('PRICE')
+  const recyclingRow = rowsByName.get('RECYCLING_FEE')
+  const customsParts = ['CUSTOMS_DUTY', 'CUSTOMS_FEE']
+    .map((name) => rowsByName.get(name))
+    .filter((row) => row?.value != null)
+  const customsSummary = rowsByName.get('CUSTOMS_DUTY_AND_FEES')
+  // The API summary also includes the recycling fee.
+  const customsValue =
+    customsParts.length > 0
+      ? customsParts.reduce((sum, row) => sum + row.value, 0)
+      : customsSummary?.value != null
+        ? Math.max(customsSummary.value - (recyclingRow?.value || 0), 0)
+        : null
+  const customsRow =
+    customsValue === null
+      ? null
+      : {
+          name: 'customs',
+          label: 'Таможня (Пошлина + таможенный сбор)',
+          value: customsValue,
+        }
+
+  const mainCosts = [
+    priceRow && { ...priceRow, label: 'Цена авто в Японии' },
+    customsRow,
+    recyclingRow && { ...recyclingRow, label: 'Утилизационный сбор' },
+    rowsByName.get('SPENDING_AND_REGISTRATION') && {
+      ...rowsByName.get('SPENDING_AND_REGISTRATION'),
+      label: 'Доставка и оформление',
+    },
+  ]
+    .filter((row) => row?.value != null)
+  const totalValue = Number(total?.value)
+  const hasTotalValue = Number.isFinite(totalValue) && totalValue > 0
 
   return (
     <div className="space-y-4">
@@ -108,15 +186,32 @@ export default function ImportSection({ data }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.name} className="border-t border-border">
-                  <td className="px-4 py-2.5 text-dark">{row.label}</td>
+              {priceRow && (
+                <tr className="border-t border-border">
+                  <td className="px-4 py-2.5 font-semibold text-dark">{priceRow.label}</td>
                   <td className="px-4 py-2.5 text-right font-semibold text-dark whitespace-nowrap">
-                    {row.display}
+                    {priceRow.display}
                   </td>
                 </tr>
+              )}
+              {groups.map((group) => (
+                <Fragment key={group.label}>
+                  <tr className="border-t border-border bg-surface/70">
+                    <td colSpan={2} className="px-4 py-2 font-semibold text-dark">
+                      {group.label}
+                    </td>
+                  </tr>
+                  {group.itemRows.map((row) => (
+                    <tr key={row.key || row.name} className="border-t border-border/60">
+                      <td className="px-4 py-2 pl-7 text-muted">{row.label}</td>
+                      <td className="px-4 py-2 text-right text-dark whitespace-nowrap">
+                        {row.display}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
-              {rows.length === 0 && (
+              {!priceRow && groups.length === 0 && (
                 <tr>
                   <td colSpan={2} className="px-4 py-6 text-center text-muted">
                     Детализация не передана
@@ -132,21 +227,23 @@ export default function ImportSection({ data }) {
             Из чего складывается цена
           </h3>
           <div className="space-y-3">
-            {mainCosts.length === 0 && (
+            {(!hasTotalValue || mainCosts.length === 0) && (
               <p className="text-sm text-muted">Нет данных для диаграммы</p>
             )}
-            {mainCosts.map((row) => (
+            {hasTotalValue && mainCosts.map((row) => (
               <div key={row.name}>
                 <div className="flex items-baseline justify-between gap-2 mb-1">
                   <span className="text-xs text-muted truncate">{row.label}</span>
-                  <span className="text-xs font-semibold text-dark whitespace-nowrap">
+                  <span className="text-xs font-semibold text-dark whitespace-nowrap shrink-0 pl-2">
                     {formatNumber(row.value)}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-surface overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-brand to-accent"
-                    style={{ width: `${Math.max((row.value / maxValue) * 100, 3)}%` }}
+                    style={{
+                      width: `${Math.min(Math.max((row.value / totalValue) * 100, 0), 100)}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -163,8 +260,8 @@ export default function ImportSection({ data }) {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-3 text-sm">
             <Param label="Цена" value={data.form.price ? `${formatNumber(data.form.price)} ${currencySign(data.form.currency)}` : '—'} />
-            <Param label="Возраст" value={data.form.vehicleAge?.replace(/_/g, ' ').toLowerCase()} />
-            <Param label="Двигатель" value={data.form.engineType === 'ELECTRIC_MOTOR' ? 'электро' : 'ДВС'} />
+            <Param label="Возраст" value={vehicleAgeLabel(data.form.vehicleAge)} />
+            <Param label="Двигатель" value={engineTypeLabel(data.form.engineType)} />
             <Param
               label="Объём"
               value={
@@ -183,13 +280,38 @@ export default function ImportSection({ data }) {
             />
             <Param
               label="Цель"
-              value={data.form.importPurpose === 'RESALE' ? 'перепродажа' : 'для себя'}
+              value={importPurposeLabel(data.form.importPurpose)}
             />
           </div>
         </div>
       )}
     </div>
   )
+}
+
+function vehicleAgeLabel(value) {
+  const labels = {
+    UNDER_3: 'до 3 лет',
+    FROM_3_TO_5: 'от 3 до 5 лет',
+    OVER_5: 'старше 5 лет',
+  }
+  return labels[value] || value?.replace(/_/g, ' ').toLowerCase()
+}
+
+function engineTypeLabel(value) {
+  const labels = {
+    DIESEL_OR_GASOLINE: 'бензин / дизель',
+    ELECTRIC_MOTOR: 'электро',
+  }
+  return labels[value] || value?.replace(/_/g, ' ').toLowerCase()
+}
+
+function importPurposeLabel(value) {
+  const labels = {
+    USAGE: 'для себя',
+    RESALE: 'перепродажа',
+  }
+  return labels[value] || value?.replace(/_/g, ' ').toLowerCase()
 }
 
 function Param({ label, value }) {

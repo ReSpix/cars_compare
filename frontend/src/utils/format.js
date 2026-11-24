@@ -1,5 +1,6 @@
 const CURRENCY_CODES = {
   RUB: '₽',
+  YEN: '¥',
   JPY: '¥',
   USD: '$',
   EUR: '€',
@@ -58,19 +59,19 @@ export function numericValue(component) {
 }
 
 const TITLE_CASE = {
-  PRICE: 'Цена автомобиля',
-  SPENDING_ABROAD: 'Расходы за границей',
-  FREIGHT_TO_VLADIVOSTOK: 'Доставка до Владивостока',
+  PRICE: 'Цена авто в Японии',
+  SPENDING_ABROAD: 'Расходы по Японии',
+  FREIGHT_TO_VLADIVOSTOK: 'Фрахт во Владивосток',
   SPENDING_TO_VLADIVOSTOK: 'Расходы до Владивостока',
   REGISTRATION_COSTS: 'Расходы на регистрацию',
   COMPANY_COMMISSION: 'Комиссия компании',
-  CUSTOMS_DUTY: 'Пошлина и сборы',
+  CUSTOMS_DUTY: 'Пошлина',
   EXCISE_TAX: 'Акциз',
   CUSTOMS_FEE: 'Таможенный сбор',
   RECYCLING_FEE: 'Утилизационный сбор',
   VAT: 'НДС',
-  SPENDING_AND_REGISTRATION: 'Расходы и регистрация',
-  CUSTOMS_DUTY_AND_FEES: 'Пошлина и сборы',
+  SPENDING_AND_REGISTRATION: 'Доставка и оформление',
+  CUSTOMS_DUTY_AND_FEES: 'Пошлина + таможенный сбор',
 }
 
 export function componentLabel(name) {
