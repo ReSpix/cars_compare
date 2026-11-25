@@ -3,6 +3,7 @@ import { Wallet, Percent } from 'lucide-react'
 import {
   componentLabel,
   currencySign,
+  formatCentralBankRate,
   formatMoney,
   formatNumber,
   formatPriceComponent,
@@ -162,8 +163,7 @@ export default function ImportSection({ data }) {
               <div key={code} className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-semibold text-dark">{code}</span>
                 <span className="text-sm text-muted">
-                  {formatNumber(rate.value, 4)}
-                  {rate.multipliedBy ? ` × ${rate.multipliedBy}` : ''}
+                  {formatCentralBankRate(rate)}
                 </span>
               </div>
             ))}

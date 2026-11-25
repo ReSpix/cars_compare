@@ -22,6 +22,17 @@ export function formatNumber(value, digits = 0) {
   })
 }
 
+export function formatCentralBankRate(rate) {
+  if (!rate) return '—'
+  const value = Number(rate.value)
+  const multiplier = Number(rate.multipliedBy) || 1
+  if (!Number.isFinite(value) || !Number.isFinite(multiplier) || multiplier <= 0)
+    return '—'
+  const normalizedValue = Math.round((value / multiplier) * 100) / 100
+  const normalized = formatNumber(normalizedValue, 2)
+  return normalized === null ? '—' : `${normalized} ₽`
+}
+
 /** Деньги из схемы Money: { currency, value }. */
 export function formatMoney(money, digits = 0) {
   if (!money || money.value === null || money.value === undefined) return '—'
