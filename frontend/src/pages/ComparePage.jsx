@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Sparkles,
   Info,
+  AlertTriangle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import CarSearchForm from '../components/CarSearchForm'
@@ -53,6 +54,53 @@ function readSelection(searchParams) {
     generationTitle: get('generation_title'),
     regionName: get('region_name'),
   }
+}
+
+function getImportRestrictions(report, selection) {
+  const restrictions = []
+  const modificationTitle = selection.modificationTitle || ''
+  const reportedEngineVolume = Number(
+    report?.japan_import_response?.form?.engineVolumeInCubicCentimeters ??
+      report?.query?.engine_volume,
+  )
+  const titleVolumeMatch = modificationTitle.match(
+    /^\s*(\d+(?:[.,]\d+)?)\s*л(?:\.?)(?=\s*,)/i,
+  )
+  const titleEngineVolume = titleVolumeMatch
+    ? Number(titleVolumeMatch[1].replace(',', '.')) * 1000
+    : Number.NaN
+  const engineVolume = Number.isFinite(reportedEngineVolume)
+    ? reportedEngineVolume
+    : titleEngineVolume
+
+  if (engineVolume > 1900) restrictions.push('двигатель объемом более 1,9 л')
+
+  if (/гибрид|hybrid|\bPHEV\b|\bHEV\b/i.test(modificationTitle)) {
+    restrictions.push('гибридная модификация')
+  }
+  if (/электр|electric|\bBEV\b|\bEV\b/i.test(modificationTitle)) {
+    restrictions.push('электрический автомобиль')
+  }
+
+  const averageAuctionPrice = Number(report?.auctions?.avg_price_jpy)
+  if (averageAuctionPrice > 6_000_000) {
+    restrictions.push('средняя цена на аукционе выше 6 млн иен')
+  }
+
+  const commercialFrames = new Set([
+    'TRUCK',
+    'BOX_TRUCK',
+    'CHASSIS_CAB',
+    'TRUCK_TRACTOR',
+    'BUS',
+    'VAN',
+    'PICKUP',
+  ])
+  if (commercialFrames.has(String(selection.frame).toUpperCase())) {
+    restrictions.push('грузовой или коммерческий кузов')
+  }
+
+  return restrictions
 }
 
 export default function ComparePage() {
@@ -158,6 +206,9 @@ export default function ComparePage() {
   // Отчёт и ошибка относятся только к текущему набору параметров
   const shownReport = isComplete ? report : null
   const shownError = isComplete ? error : null
+  const importRestrictions = shownReport
+    ? getImportRestrictions(shownReport, selection)
+    : []
 
   const availability = shownReport?.results_availability
   const chart = shownReport?.price_change_chart
@@ -239,6 +290,56 @@ export default function ComparePage() {
           <h2 className="font-bold text-dark mb-4">Выберите автомобиль</h2>
           <CarSearchForm onSubmit={applySelection} />
         </div>
+        {shownReport && !loading && importRestrictions.length > 0 && (
+          <div
+            role="alert"
+            className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-900"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div className="text-sm">
+                <h3 className="mb-2 text-base font-bold">
+                  Возможны ограничения на ввоз автомобиля из Японии в Россию
+                </h3>
+                <p>
+                  По результатам предварительной проверки выявлены следующие
+                  признаки:
+                </p>
+                <ul className="my-2 list-disc space-y-1 pl-5">
+                  {importRestrictions.map((restriction) => (
+                    <li key={restriction}>{restriction}</li>
+                  ))}
+                </ul>
+                <p className="font-semibold">
+                  Ограничения могут применяться к транспортным средствам:
+                </p>
+                <ul className="my-2 list-disc space-y-1 pl-5">
+                  <li>с объемом двигателя более 1,9 л;</li>
+                  <li>с гибридной силовой установкой;</li>
+                  <li>с полностью электрической силовой установкой;</li>
+                  <li>
+                    со стоимостью в Японии свыше 6 млн иен;
+                  </li>
+                  <li>
+                    относящимся к грузовому или коммерческому транспорту.
+                  </li>
+                </ul>
+                <p className="mt-3">
+                  Доставка такого автомобиля может быть
+                  возможна транзитом через третью страну, однако она повлечет дополнительные расходы и
+                  сопряжена с повышенными правовыми, финансовыми и
+                  логистическими рисками. Возможность и условия ввоза
+                  необходимо отдельно проверить применительно к конкретному
+                  транспортному средству и на дату сделки.
+                </p>
+                <p className="mt-2 text-xs text-red-800">
+                  Информация носит справочный характер и не является
+                  юридическим заключением.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Отчёт ──────────────────────────────────────── */}
