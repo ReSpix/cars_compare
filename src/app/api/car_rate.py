@@ -1,8 +1,5 @@
-from typing import Annotated
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, HTTPException, Query
-
-from app import regions_config
 from app.parser.car_rate import (
     get_firms_list,
     get_frames_list,
@@ -116,6 +113,7 @@ async def price_change_chart(
     wheel: Wheel,
     frame: str,
     region_id: int,
+    generation_id: str | None = None,
 ) -> PriceChangeChart:
     try:
         return await get_price_change_chart(
@@ -126,6 +124,7 @@ async def price_change_chart(
             wheel=wheel,
             frame=frame,
             region_id=region_id,
+            generation_id=generation_id,
         )
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
@@ -140,6 +139,7 @@ async def similar_cars(
     wheel: Wheel,
     frame: str,
     region_id: int,
+    generation_id: str | None = None,
 ) -> SimilarCars:
     try:
         return await get_similar_cars(
@@ -150,6 +150,7 @@ async def similar_cars(
             wheel=wheel,
             frame=frame,
             region_id=region_id,
+            generation_id=generation_id,
         )
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error

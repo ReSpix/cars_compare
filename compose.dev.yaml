@@ -20,6 +20,8 @@ services:
       - /app/src
 
   frontend:
+    ports: !override
+      - "80:5173"
     build:
       target: development
     command:

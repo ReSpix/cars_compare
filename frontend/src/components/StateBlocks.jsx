@@ -19,7 +19,11 @@ export function EmptyState({ title, text }) {
   )
 }
 
-export function ErrorBanner({ title = 'Не удалось построить отчёт', text, onRetry }) {
+export function ErrorBanner({
+  title = 'Не удалось построить отчёт',
+  text,
+  onRetry,
+}) {
   return (
     <div className="bg-brand-light border border-brand-soft rounded-2xl p-5 flex items-start gap-4">
       <AlertTriangle className="w-5 h-5 text-brand-dark shrink-0 mt-0.5" />
@@ -53,9 +57,10 @@ export function DegradedBanner({ text }) {
           Отчёт собран по частям
         </h3>
         <p className="text-sm text-amber-800/80">
-          Комбинированный эндпоинт <code className="font-mono text-xs">/car_compare</code>{' '}
-          вернул ошибку на расчёте импорта, поэтому оценка, аукционы и похожие
-          объявления получены отдельными запросами.{' '}
+          Комбинированный эндпоинт{' '}
+          <code className="font-mono text-xs">/car_compare</code> вернул ошибку
+          на расчёте импорта, поэтому оценка, аукционы и похожие объявления
+          получены отдельными запросами.{' '}
           {text && <span className="font-mono text-xs">{text}</span>}
         </p>
       </div>
@@ -66,14 +71,18 @@ export function DegradedBanner({ text }) {
 export function Section({ id, icon: Icon, title, subtitle, action, children }) {
   return (
     <section id={id} className="scroll-mt-24 animate-rise">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-3">
+      <div className="mb-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-brand-light flex items-center justify-center shrink-0">
             <Icon className="w-5 h-5 text-brand" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-dark leading-tight">{title}</h2>
-            {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
+            <h2 className="text-lg font-bold text-dark leading-tight">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-sm leading-6 text-muted mt-1">{subtitle}</p>
+            )}
           </div>
         </div>
         {action}

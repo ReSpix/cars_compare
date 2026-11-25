@@ -14,6 +14,7 @@ from typing import Any, ParamSpec, TypeVar
 
 import aiohttp
 
+from app.parser.listing_mileage import enrich_listing_mileages
 from app.schemas import (
     Firm,
     Generation,
@@ -425,6 +426,9 @@ async def get_modifications_list(
     return [Modification(**modification) for modification in data["modification"]]
 
 
+@_cache_catalog(
+    "model_id", "year", "frame", "wheel", "modification_id", "generation_id"
+)
 async def get_generation_and_modification(
     model_id: int,
     year: int,
@@ -432,6 +436,7 @@ async def get_generation_and_modification(
     wheel: Wheel,
     modification_id: int,
     session: aiohttp.ClientSession | None = None,
+    generation_id: str | None = None,
 ) -> tuple[Generation, Modification]:
     generations = await get_generations_list(
         model_id=model_id,
@@ -441,6 +446,8 @@ async def get_generation_and_modification(
         session=session,
     )
     for generation in generations:
+        if generation_id is not None and generation.id != generation_id:
+            continue
         modifications = await get_modifications_list(
             model_id=model_id,
             year=year,
@@ -506,6 +513,7 @@ async def get_price_change_chart(
     frame: str,
     region_id: int,
     session: aiohttp.ClientSession | None = None,
+    generation_id: str | None = None,
 ) -> PriceChangeChart:
     generation, _ = await get_generation_and_modification(
         model_id=model_id,
@@ -514,6 +522,7 @@ async def get_price_change_chart(
         wheel=wheel,
         modification_id=modification_id,
         session=session,
+        generation_id=generation_id,
     )
     try:
         raw = await _rest_get(
@@ -532,7 +541,13 @@ async def get_price_change_chart(
             session=session,
         )
     except aiohttp.ClientResponseError as err:
-        return PriceChangeChart(recommendedPrice=None, averageSaleDays=None)
+        return PriceChangeChart(
+            unavailable_reason="insufficient_data"
+            if err.status == 400
+            else "source_unavailable"
+        )
+    except (aiohttp.ClientError, asyncio.TimeoutError):
+        return PriceChangeChart(unavailable_reason="source_unavailable")
 
     return PriceChangeChart(**raw)
 
@@ -546,6 +561,7 @@ async def get_similar_cars(
     frame: str,
     region_id: int,
     session: aiohttp.ClientSession | None = None,
+    generation_id: str | None = None,
 ) -> SimilarCars:
     generation, _ = await get_generation_and_modification(
         model_id=model_id,
@@ -554,6 +570,7 @@ async def get_similar_cars(
         wheel=wheel,
         modification_id=modification_id,
         session=session,
+        generation_id=generation_id,
     )
     raw = await _rest_get(
         "similar-cars",
@@ -569,6 +586,9 @@ async def get_similar_cars(
             region_id,
         ),
         session=session,
+    )
+    raw["bulls"] = await enrich_listing_mileages(
+        raw.get("bulls") or [], session=session
     )
     return SimilarCars(**raw)
 

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   /* Красная цветотематика */
@@ -10,7 +10,7 @@
   --color-dark: #17181c;
   --color-darker: #0e0f12;
   --color-card: #ffffff;
-  --color-muted: #6b7280;
+  --color-muted: #4b5563;
   --color-surface: #faf7f7;
   --color-border: #ece3e4;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;

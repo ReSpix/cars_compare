@@ -69,9 +69,18 @@ export async function buildReport({ compareParams, catalog, importPurpose }) {
         auctions,
         japan_import_response: null,
         results_availability: {
-          price_change_chart: { available: Boolean(chart), missing_fields: [] },
-          similar_cars: { available: Boolean(similar), missing_fields: [] },
-          auctions: { available: Boolean(auctions), missing_fields: [] },
+          price_change_chart: {
+            available: chart?.recommendedPrice > 0,
+            missing_fields: [],
+          },
+          similar_cars: {
+            available: similar?.bulls?.length > 0,
+            missing_fields: [],
+          },
+          auctions: {
+            available: auctions?.examples?.length > 0,
+            missing_fields: [],
+          },
           japan_import_response: {
             available: false,
             missing_fields: hasPrices ? [] : ['price'],

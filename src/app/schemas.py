@@ -1,4 +1,5 @@
 import re
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
@@ -22,6 +23,17 @@ class Car(BaseModel):
     price_jpy: int | None = None
     url: str | None = None
     image_url: str | None = None
+    auction_date: date | None = None
+
+    @field_validator("auction_date", mode="before")
+    @classmethod
+    def parse_auction_date(cls, value: Any) -> date | None:
+        if value is None:
+            return None
+        try:
+            return date.fromisoformat(str(value)[:10])
+        except ValueError:
+            return None
 
     @field_validator("year", mode="before")
     @classmethod
@@ -79,6 +91,7 @@ class Car(BaseModel):
                 "mileage": mileage.get("value"),
                 "rating": rating.get("ratingValue"),
                 "price_jpy": jpy_offer.get("price") if jpy_offer else None,
+                "auction_date": jpy_offer.get("validFrom") if jpy_offer else None,
                 "url": data.get("url"),
                 "image_url": (data.get("image", {}).get("url", None)),
             }
@@ -102,15 +115,35 @@ class AuctionResponse(BaseModel):
     url: str
     examples: list[Car]
     avg_price_jpy: int = 0
+    priced_lot_count: int = 0
+    dated_lot_count: int = 0
+    period_start: date | None = None
+    period_end: date | None = None
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    avg_mileage_km: int | None = None
+    mileage_count: int = 0
 
     @model_validator(mode="after")
     def calculate_average_price(self) -> "AuctionResponse":
-        prices = [
-            car.price_jpy
+        priced_cars = [
+            car
             for car in self.examples
             if car.price_jpy is not None and car.price_jpy > 0
         ]
+        prices = [car.price_jpy for car in priced_cars]
+        dates = [car.auction_date for car in priced_cars if car.auction_date]
         self.avg_price_jpy = sum(prices) // len(prices) if prices else 0
+        self.priced_lot_count = len(prices)
+        self.dated_lot_count = len(dates)
+        self.period_start = min(dates) if dates else None
+        self.period_end = max(dates) if dates else None
+        mileages = [
+            car.mileage
+            for car in priced_cars
+            if car.mileage is not None and car.mileage >= 0
+        ]
+        self.mileage_count = len(mileages)
+        self.avg_mileage_km = round(sum(mileages) / len(mileages)) if mileages else None
         return self
 
 
@@ -154,17 +187,28 @@ class Bull(DromCatalogModel):
     src: str | None = None
     src2x: str | None = None
     price: int
+    mileage: int | None = Field(default=None, ge=0)
 
 
 class PriceChangeChart(DromCatalogModel):
     recommendedPrice: int | None = None
     averageSaleDays: int | None = None
+    unavailable_reason: Literal["insufficient_data", "source_unavailable"] | None = None
 
 
 class SimilarCars(DromCatalogModel):
     bulls: list[Bull] = Field(default_factory=list)
     searchLink: str
     myCarAddToDraftLink: str | None = None
+    avg_mileage_km: int | None = None
+    mileage_count: int = 0
+
+    @model_validator(mode="after")
+    def calculate_average_mileage(self) -> "SimilarCars":
+        mileages = [bull.mileage for bull in self.bulls if bull.mileage is not None]
+        self.mileage_count = len(mileages)
+        self.avg_mileage_km = round(sum(mileages) / len(mileages)) if mileages else None
+        return self
 
     @field_validator("bulls", mode="before")
     @classmethod
@@ -211,6 +255,9 @@ class CarCompareQuery(BaseModel):
     model_id: int = Field(description="Required input: model catalog ID.")
     year: int = Field(description="Required input: vehicle model year.")
     modification_id: int = Field(description="Required input: modification ID.")
+    generation_id: str | None = Field(
+        default=None, description="Selected catalog generation ID."
+    )
     wheel: Wheel = Field(description="Required input: steering wheel position.")
     frame: str = Field(description="Required input: body type.")
     region_id: int = Field(description="Required input: Drom region ID.")

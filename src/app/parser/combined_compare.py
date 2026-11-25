@@ -94,6 +94,7 @@ async def get_combined_compare(
             wheel=wheel,
             modification_id=modification_id,
             session=session,
+            generation_id=query.generation_id,
         )
 
         auction_firm = _auction_slug(firm.title)
@@ -126,6 +127,7 @@ async def get_combined_compare(
                     frame=frame,
                     region_id=region_id,
                     session=session,
+                    generation_id=query.generation_id,
                 )
             )
             similar_cars_task = tasks.create_task(
@@ -138,6 +140,7 @@ async def get_combined_compare(
                     frame=frame,
                     region_id=region_id,
                     session=session,
+                    generation_id=query.generation_id,
                 )
             )
             auction_examples_task = tasks.create_task(
@@ -196,10 +199,14 @@ async def get_combined_compare(
                 session=session
             ).calculate(japan_import_request)
 
+        price_change_chart = price_change_task.result()
+        similar_cars = similar_cars_task.result()
         results_availability = CombinedResultsAvailability(
-            price_change_chart=ResultAvailability(available=True),
-            similar_cars=ResultAvailability(available=True),
-            auctions=ResultAvailability(available=True),
+            price_change_chart=ResultAvailability(
+                available=(price_change_chart.recommendedPrice or 0) > 0
+            ),
+            similar_cars=ResultAvailability(available=bool(similar_cars.bulls)),
+            auctions=ResultAvailability(available=bool(auction_response.examples)),
             japan_import_response=ResultAvailability(
                 available=japan_import_response is not None,
                 missing_fields=japan_missing_fields,
@@ -208,8 +215,8 @@ async def get_combined_compare(
 
         return CombinedCarRateResponse(
             query=effective_query,
-            price_change_chart=price_change_task.result(),
-            similar_cars=similar_cars_task.result(),
+            price_change_chart=price_change_chart,
+            similar_cars=similar_cars,
             auctions=auction_response,
             japan_import_response=japan_import_response,
             results_availability=results_availability,

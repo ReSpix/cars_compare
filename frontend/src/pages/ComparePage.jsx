@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ArrowDown,
@@ -12,13 +12,18 @@ import {
   RefreshCw,
   Sparkles,
   Info,
-  AlertTriangle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import CarSearchForm from '../components/CarSearchForm'
 import AuctionCard from '../components/AuctionCard'
 import SimilarCarCard from '../components/SimilarCarCard'
 import ImportSection from '../components/ImportSection'
+import ComparisonConclusion from '../components/ComparisonConclusion'
+import DromSearchPanel from '../components/DromSearchPanel'
+import AuctionSampleInfo from '../components/AuctionSampleInfo'
+import DromSearchButton from '../components/DromSearchButton'
+import { buildDromSearchLinks } from '../utils/dromLinks'
+import { getDomesticPrice } from '../utils/comparison'
 import {
   Spinner,
   EmptyState,
@@ -56,53 +61,6 @@ function readSelection(searchParams) {
   }
 }
 
-function getImportRestrictions(report, selection) {
-  const restrictions = []
-  const modificationTitle = selection.modificationTitle || ''
-  const reportedEngineVolume = Number(
-    report?.japan_import_response?.form?.engineVolumeInCubicCentimeters ??
-      report?.query?.engine_volume,
-  )
-  const titleVolumeMatch = modificationTitle.match(
-    /^\s*(\d+(?:[.,]\d+)?)\s*л(?:\.?)(?=\s*,)/i,
-  )
-  const titleEngineVolume = titleVolumeMatch
-    ? Number(titleVolumeMatch[1].replace(',', '.')) * 1000
-    : Number.NaN
-  const engineVolume = Number.isFinite(reportedEngineVolume)
-    ? reportedEngineVolume
-    : titleEngineVolume
-
-  if (engineVolume > 1900) restrictions.push('двигатель объемом более 1,9 л')
-
-  if (/гибрид|hybrid|\bPHEV\b|\bHEV\b/i.test(modificationTitle)) {
-    restrictions.push('гибридная модификация')
-  }
-  if (/электр|electric|\bBEV\b|\bEV\b/i.test(modificationTitle)) {
-    restrictions.push('электрический автомобиль')
-  }
-
-  const averageAuctionPrice = Number(report?.auctions?.avg_price_jpy)
-  if (averageAuctionPrice > 6_000_000) {
-    restrictions.push('средняя цена на аукционе выше 6 млн иен')
-  }
-
-  const commercialFrames = new Set([
-    'TRUCK',
-    'BOX_TRUCK',
-    'CHASSIS_CAB',
-    'TRUCK_TRACTOR',
-    'BUS',
-    'VAN',
-    'PICKUP',
-  ])
-  if (commercialFrames.has(String(selection.frame).toUpperCase())) {
-    restrictions.push('грузовой или коммерческий кузов')
-  }
-
-  return restrictions
-}
-
 export default function ComparePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryKey = searchParams.toString()
@@ -124,6 +82,18 @@ export default function ComparePage() {
   const [degradedReason, setDegradedReason] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const reportRequest = useRef(0)
+  const [searchYears, setSearchYears] = useState({ key: '', from: '', to: '' })
+  const searchKey = [
+    selection.firmId,
+    selection.modelId,
+    selection.wheel,
+    selection.year,
+  ].join(':')
+  const searchRange =
+    searchYears.key === searchKey
+      ? searchYears
+      : { from: selection.year, to: selection.year }
 
   const compareParams = useMemo(
     () => ({
@@ -131,6 +101,9 @@ export default function ComparePage() {
       model_id: selection.modelId,
       year: selection.year,
       modification_id: selection.modificationId,
+      ...(selection.generationId
+        ? { generation_id: selection.generationId }
+        : {}),
       wheel: selection.wheel,
       frame: selection.frame,
       region_id: selection.regionId,
@@ -141,33 +114,46 @@ export default function ComparePage() {
   )
 
   const loadReport = useCallback(async () => {
+    const request = ++reportRequest.current
     setLoading(true)
     setError(null)
     try {
-      const { report: data, degraded: isDegraded, degradedReason: reason } =
-        await buildReport({
-          compareParams,
-          importPurpose: selection.importPurpose,
-          catalog: {
-            firm: { title: selection.firmTitle },
-            model: { title: selection.modelTitle },
-            modification: { title: selection.modificationTitle },
-          },
-        })
+      const {
+        report: data,
+        degraded: isDegraded,
+        degradedReason: reason,
+      } = await buildReport({
+        compareParams,
+        importPurpose: selection.importPurpose,
+        catalog: {
+          firm: { title: selection.firmTitle },
+          model: { title: selection.modelTitle },
+          modification: { title: selection.modificationTitle },
+        },
+      })
+      if (request !== reportRequest.current) return
       setReport(data)
       setDegraded(Boolean(isDegraded))
       setDegradedReason(reason || '')
     } catch (err) {
+      if (request !== reportRequest.current) return
       setReport(null)
       setError(err.message || 'Неизвестная ошибка')
     } finally {
-      setLoading(false)
+      if (request === reportRequest.current) setLoading(false)
     }
   }, [compareParams, selection])
 
   useEffect(() => {
     if (!isComplete) return
-    loadReport()
+    let current = true
+    Promise.resolve().then(() => {
+      if (current) loadReport()
+    })
+    return () => {
+      current = false
+      reportRequest.current += 1
+    }
   }, [isComplete, queryKey, loadReport])
 
   const applySelection = (form) => {
@@ -190,14 +176,17 @@ export default function ComparePage() {
     // Цена прошлого лота к новой машине не относится
     setSearchParams(params)
     requestAnimationFrame(() => {
-      document.getElementById('report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document
+        .getElementById('report')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
   const patchParams = (patch) => {
     const params = new URLSearchParams(searchParams)
     Object.entries(patch).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') params.delete(key)
+      if (value === undefined || value === null || value === '')
+        params.delete(key)
       else params.set(key, value)
     })
     setSearchParams(params)
@@ -206,14 +195,11 @@ export default function ComparePage() {
   // Отчёт и ошибка относятся только к текущему набору параметров
   const shownReport = isComplete ? report : null
   const shownError = isComplete ? error : null
-  const importRestrictions = shownReport
-    ? getImportRestrictions(shownReport, selection)
-    : []
 
-  const availability = shownReport?.results_availability
   const chart = shownReport?.price_change_chart
   const auctions = shownReport?.auctions
   const similar = shownReport?.similar_cars
+  const searchLinks = buildDromSearchLinks(similar?.searchLink, searchRange)
   const importTotal = shownReport?.japan_import_response?.result?.totalPrice
   const lotPrice =
     shownReport?.japan_import_response?.form?.price ??
@@ -221,18 +207,24 @@ export default function ComparePage() {
     auctions?.avg_price_jpy ??
     selection.price ??
     ''
-  const domesticPrice = Number(chart?.recommendedPrice)
+  const domestic = getDomesticPrice(shownReport)
+  const domesticPrice = domestic.value
   const importPrice = Number(importTotal?.value)
-  const hasDomesticPrice =
-    chart?.recommendedPrice != null &&
-    Number.isFinite(domesticPrice) &&
-    domesticPrice > 0
+  const hasDomesticPrice = domesticPrice !== null
   const hasImportPrice =
     importTotal?.value != null &&
     Number.isFinite(importPrice) &&
     importPrice > 0
-  const hasComparablePrices =
-    hasDomesticPrice && hasImportPrice
+  const hasComparablePrices = hasDomesticPrice && hasImportPrice
+  const availability = shownReport
+    ? {
+        ...shownReport.results_availability,
+        price_change_chart: {
+          ...shownReport.results_availability?.price_change_chart,
+          available: hasDomesticPrice,
+        },
+      }
+    : null
   const domesticPriceTone = !hasDomesticPrice
     ? 'text-dark'
     : !hasImportPrice
@@ -276,7 +268,7 @@ export default function ComparePage() {
                 ваша машина
               </span>
             </h1>
-            <p className="text-white/60 mt-4 text-base md:text-lg max-w-2xl">
+            <p className="text-white/80 mt-4 text-base md:text-lg max-w-2xl">
               Рыночная оценка по России, лоты японских аукционов, похожие
               объявления и полный расчёт импорта с пошлинами, утильсбором и НДС.
             </p>
@@ -288,58 +280,21 @@ export default function ComparePage() {
       <div className="max-w-7xl mx-auto px-4 -mt-20 relative z-10">
         <div className="bg-white rounded-2xl border border-border shadow-2xl shadow-black/10 p-5 md:p-6">
           <h2 className="font-bold text-dark mb-4">Выберите автомобиль</h2>
-          <CarSearchForm onSubmit={applySelection} />
+          <CarSearchForm
+            key={[
+              selection.regionId,
+              selection.firmId,
+              selection.modelId,
+              selection.wheel,
+              selection.year,
+              selection.frame,
+              selection.generationId,
+              selection.modificationId,
+            ].join(':')}
+            initialSelection={selection}
+            onSubmit={applySelection}
+          />
         </div>
-        {shownReport && !loading && importRestrictions.length > 0 && (
-          <div
-            role="alert"
-            className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-900"
-          >
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-              <div className="text-sm">
-                <h3 className="mb-2 text-base font-bold">
-                  Возможны ограничения на ввоз автомобиля из Японии в Россию
-                </h3>
-                <p>
-                  По результатам предварительной проверки выявлены следующие
-                  признаки:
-                </p>
-                <ul className="my-2 list-disc space-y-1 pl-5">
-                  {importRestrictions.map((restriction) => (
-                    <li key={restriction}>{restriction}</li>
-                  ))}
-                </ul>
-                <p className="font-semibold">
-                  Ограничения могут применяться к транспортным средствам:
-                </p>
-                <ul className="my-2 list-disc space-y-1 pl-5">
-                  <li>с объемом двигателя более 1,9 л;</li>
-                  <li>с гибридной силовой установкой;</li>
-                  <li>с полностью электрической силовой установкой;</li>
-                  <li>
-                    со стоимостью в Японии свыше 6 млн иен;
-                  </li>
-                  <li>
-                    относящимся к грузовому или коммерческому транспорту.
-                  </li>
-                </ul>
-                <p className="mt-3">
-                  Доставка такого автомобиля может быть
-                  возможна транзитом через третью страну, однако она повлечет дополнительные расходы и
-                  сопряжена с повышенными правовыми, финансовыми и
-                  логистическими рисками. Возможность и условия ввоза
-                  необходимо отдельно проверить применительно к конкретному
-                  транспортному средству и на дату сделки.
-                </p>
-                <p className="mt-2 text-xs text-red-800">
-                  Информация носит справочный характер и не является
-                  юридическим заключением.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ─── Отчёт ──────────────────────────────────────── */}
@@ -351,7 +306,9 @@ export default function ComparePage() {
           />
         )}
 
-        {loading && <Spinner label="Собираем отчёт: оценка, аукционы, импорт…" />}
+        {loading && (
+          <Spinner label="Собираем отчёт: оценка, аукционы, импорт…" />
+        )}
 
         {shownError && !loading && (
           <ErrorBanner text={shownError} onRetry={loadReport} />
@@ -370,12 +327,21 @@ export default function ComparePage() {
                   </h2>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     <Chip>{selection.year} г.</Chip>
-                    <Chip>{FRAME_LABELS[selection.frame] || selection.frame}</Chip>
                     <Chip>
-                      {WHEEL_OPTIONS.find((w) => w.value === selection.wheel)?.label}
+                      {FRAME_LABELS[selection.frame] || selection.frame}
                     </Chip>
-                    {selection.regionName && <Chip>{selection.regionName}</Chip>}
-                    {selection.generationTitle && <Chip>{selection.generationTitle}</Chip>}
+                    <Chip>
+                      {
+                        WHEEL_OPTIONS.find((w) => w.value === selection.wheel)
+                          ?.label
+                      }
+                    </Chip>
+                    {selection.regionName && (
+                      <Chip>{selection.regionName}</Chip>
+                    )}
+                    {selection.generationTitle && (
+                      <Chip>{selection.generationTitle}</Chip>
+                    )}
                   </div>
                   {selection.modificationTitle && (
                     <p className="text-sm text-muted mt-2">
@@ -395,7 +361,9 @@ export default function ComparePage() {
                         <button
                           key={p.value}
                           type="button"
-                          onClick={() => patchParams({ import_purpose: p.value })}
+                          onClick={() =>
+                            patchParams({ import_purpose: p.value })
+                          }
                           className={clsx(
                             'px-3 py-2 text-xs font-semibold transition-colors',
                             selection.importPurpose === p.value
@@ -434,7 +402,10 @@ export default function ComparePage() {
                       ) : (
                         <XCircle className="w-3 h-3" />
                       )}
-                      {AVAILABILITY_LABELS[key] || key}
+                      {key === 'price_change_chart' &&
+                      domestic.source === 'listing_average'
+                        ? 'Цена РФ · по объявлениям'
+                        : AVAILABILITY_LABELS[key] || key}
                       {!value.available && value.missing_fields?.length > 0 && (
                         <span className="opacity-70 font-normal">
                           · нет: {value.missing_fields.join(', ')}
@@ -457,19 +428,21 @@ export default function ComparePage() {
                 id="assessment"
                 icon={TrendingUp}
                 title="Оценка стоимости"
-                subtitle="Цена автомобиля в России и полная стоимость привоза"
+                subtitle="Оценка по России и расчёт привоза до Владивостока"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white border border-border rounded-2xl p-6">
                     <div className="mb-3 text-muted">
                       <span className="text-xs uppercase tracking-wider font-semibold">
-                        Цена в России
+                        {domestic.source === 'listing_average'
+                          ? 'Средняя цена похожих объявлений в РФ'
+                          : 'Цена в России'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-4xl font-extrabold tracking-tight">
                       <span className={domesticPriceTone}>
                         {hasDomesticPrice
-                          ? `${formatNumber(chart.recommendedPrice)} ₽`
+                          ? `${formatNumber(domesticPrice)} ₽`
                           : 'Нет данных'}
                       </span>
                       {hasComparablePrices && domesticPrice > importPrice && (
@@ -487,11 +460,15 @@ export default function ComparePage() {
                     </div>
                     {!hasDomesticPrice && (
                       <p className="text-sm font-semibold text-red-600 mt-3">
-                        Похоже это редкая машина: не нашли ее в России
+                        {chart?.unavailable_reason === 'insufficient_data'
+                          ? 'У Drom недостаточно статистики для оценки этой модификации.'
+                          : 'Не удалось получить российскую оценку для выбранного автомобиля.'}
                       </p>
                     )}
-                    <p className="text-xs text-muted mt-3">
-                      Оценка по фактическим продажам в выбранном регионе
+                    <p className="text-sm leading-6 text-muted mt-3">
+                      {domestic.source === 'listing_average'
+                        ? `Оценка Drom недоступна. Среднее арифметическое цен из ${domestic.sampleCount} найденных похожих объявлений. Подборка может включать другие годы и комплектации.`
+                        : 'Оценка Drom для выбранного региона. Период расчёта источник не сообщает.'}
                     </p>
                   </div>
 
@@ -499,12 +476,14 @@ export default function ComparePage() {
                     <div className="flex items-center gap-2 mb-3 text-muted">
                       <Ship className="w-4 h-4 text-brand" />
                       <span className="text-xs uppercase tracking-wider font-semibold">
-                        Цена привоза
+                        Привоз до Владивостока
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-4xl font-extrabold tracking-tight">
                       <span className={importPriceTone}>
-                        {hasImportPrice ? formatMoney(importTotal) : 'Нет данных'}
+                        {hasImportPrice
+                          ? formatMoney(importTotal)
+                          : 'Нет данных'}
                       </span>
                       {hasComparablePrices && importPrice > domesticPrice && (
                         <ArrowUp
@@ -521,16 +500,33 @@ export default function ComparePage() {
                     </div>
                     {!hasImportPrice && (
                       <p className="text-sm font-semibold text-red-600 mt-3">
-                        Похоже, эту машину не привезти из Японии: не нашли аукционные лоты
+                        Недостаточно данных для оценки привоза. Можно указать
+                        цену конкретного лота.
                       </p>
                     )}
-                    <p className="text-xs text-muted mt-3">
-                      Полная стоимость автомобиля после доставки и оформления
+                    <p className="text-sm leading-6 text-muted mt-3">
+                      Расчёт до Владивостока с доставкой и оформлением
                     </p>
                   </div>
                 </div>
               </Section>
             )}
+
+            <ComparisonConclusion report={shownReport} selection={selection} />
+            <DromSearchPanel
+              key={[
+                selection.firmId,
+                selection.modelId,
+                selection.wheel,
+                selection.year,
+              ].join(':')}
+              selection={selection}
+              links={searchLinks}
+              range={searchRange}
+              onRangeChange={(range) =>
+                setSearchYears({ key: searchKey, ...range })
+              }
+            />
 
             {/* Импорт из Японии */}
             <Section
@@ -553,11 +549,14 @@ export default function ComparePage() {
                         ? 'Калькулятор Drom вернул некорректный ответ, поэтому блок пропущен — остальные данные отчёта актуальны.'
                         : 'Не хватает данных для калькулятора. Укажите цену лота в йенах или выберите другую модификацию.'}
                     </p>
-                    {availability?.japan_import_response?.missing_fields?.length > 0 && (
+                    {availability?.japan_import_response?.missing_fields
+                      ?.length > 0 && (
                       <p className="mt-2 text-xs">
                         Не хватает полей:{' '}
                         <span className="font-mono">
-                          {availability.japan_import_response.missing_fields.join(', ')}
+                          {availability.japan_import_response.missing_fields.join(
+                            ', ',
+                          )}
                         </span>
                       </p>
                     )}
@@ -572,23 +571,32 @@ export default function ComparePage() {
               icon={Gavel}
               title="Аукционы Японии"
               subtitle={
-                auctions
-                  ? `Средняя цена ¥${formatNumber(auctions.avg_price_jpy) || '—'}`
+                auctions?.avg_price_jpy > 0
+                  ? `Средняя цена по выборке: ¥${formatNumber(auctions.avg_price_jpy) || '—'}`
                   : 'Лоты с японских аукционов'
               }
               action={
-                auctions?.url && (
-                  <a
-                    href={auctions.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-brand hover:text-brand-dark no-underline"
+                <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+                  <DromSearchButton
+                    testId="auction-order-search"
+                    href={searchLinks.underOrder}
                   >
-                    Все лоты на Drom →
-                  </a>
-                )
+                    Найти автомобиль под заказ
+                  </DromSearchButton>
+                  {auctions?.url && (
+                    <a
+                      href={auctions.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold text-brand no-underline hover:text-brand-dark"
+                    >
+                      Статистика лотов на Drom →
+                    </a>
+                  )}
+                </div>
               }
             >
+              <AuctionSampleInfo auctions={auctions} />
               {auctions?.examples?.length ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {auctions.examples.slice(0, 8).map((car, index) => (
@@ -607,30 +615,34 @@ export default function ComparePage() {
             <Section
               id="similar"
               icon={Images}
-              title="Похожие объявления"
-              subtitle="Живые предложения с Drom по этой модификации"
+              title="Объявления в России"
+              subtitle="Предложения российского рынка для сравнения с ценой привоза"
               action={
-                similar?.searchLink && (
-                  <a
-                    href={similar.searchLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-brand hover:text-brand-dark no-underline"
+                <div className="flex w-full flex-col sm:w-auto">
+                  <DromSearchButton
+                    testId="russia-listings-search"
+                    href={searchLinks.domestic}
                   >
-                    Открыть поиск →
-                  </a>
-                )
+                    Смотреть объявления в России
+                  </DromSearchButton>
+                </div>
               }
             >
               {similar?.bulls?.length ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {similar.bulls.slice(0, 8).map((bull, index) => (
-                    <SimilarCarCard key={`${bull.url}-${index}`} bull={bull} />
+                    <SimilarCarCard
+                      key={`${bull.url}-${index}`}
+                      bull={bull}
+                      title={[selection.firmTitle, selection.modelTitle]
+                        .filter(Boolean)
+                        .join(' ')}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="bg-white border border-border rounded-2xl p-6 text-sm text-muted">
-                  Похожих объявлений сейчас нет.
+                  Похожих объявлений в России сейчас нет.
                 </div>
               )}
             </Section>

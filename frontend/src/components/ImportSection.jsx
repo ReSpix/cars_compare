@@ -50,16 +50,14 @@ export default function ImportSection({ data }) {
     }))
 
   const rowsByName = new Map(rows.map((row) => [row.name, row]))
-  const groupedNames = new Set(
-    [
-      'PRICE',
-      'SPENDING_AND_REGISTRATION',
-      'CUSTOMS_DUTY_AND_FEES',
-      ...COST_GROUPS.flatMap((group) =>
-        group.items.flatMap((item) => item.names),
-      ),
-    ],
-  )
+  const groupedNames = new Set([
+    'PRICE',
+    'SPENDING_AND_REGISTRATION',
+    'CUSTOMS_DUTY_AND_FEES',
+    ...COST_GROUPS.flatMap((group) =>
+      group.items.flatMap((item) => item.names),
+    ),
+  ])
   const groups = COST_GROUPS.map((group) => ({
     ...group,
     itemRows: group.items
@@ -113,8 +111,7 @@ export default function ImportSection({ data }) {
       ...rowsByName.get('SPENDING_AND_REGISTRATION'),
       label: 'Доставка и оформление',
     },
-  ]
-    .filter((row) => row?.value != null)
+  ].filter((row) => row?.value != null)
   const totalValue = Number(total?.value)
   const hasTotalValue = Number.isFinite(totalValue) && totalValue > 0
 
@@ -134,13 +131,23 @@ export default function ImportSection({ data }) {
           </div>
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm opacity-85">
             <span>
-              Цена лота: <strong>{data.form?.price ? `${formatNumber(data.form.price)} ${currencySign(data.form.currency)}` : '—'}</strong>
+              Цена лота:{' '}
+              <strong>
+                {data.form?.price
+                  ? `${formatNumber(data.form.price)} ${currencySign(data.form.currency)}`
+                  : '—'}
+              </strong>
             </span>
             <span>
               Направление: <strong>{data.importCountry || 'Япония'}</strong>
             </span>
             <span>
-              Цель: <strong>{data.form?.importPurpose === 'RESALE' ? 'перепродажа' : 'личное пользование'}</strong>
+              Цель:{' '}
+              <strong>
+                {data.form?.importPurpose === 'RESALE'
+                  ? 'перепродажа'
+                  : 'личное пользование'}
+              </strong>
             </span>
           </div>
         </div>
@@ -152,7 +159,7 @@ export default function ImportSection({ data }) {
               Курс ЦБ РФ
             </span>
           </div>
-          <p className="text-xs text-muted mb-3">
+          <p className="text-sm leading-6 text-muted mb-3">
             {data.centralBankCurrencyRate?.date || 'Дата не указана'}
           </p>
           <div className="space-y-2">
@@ -160,7 +167,10 @@ export default function ImportSection({ data }) {
               <p className="text-sm text-muted">Курсы не переданы</p>
             )}
             {Object.entries(rates).map(([code, rate]) => (
-              <div key={code} className="flex items-baseline justify-between gap-2">
+              <div
+                key={code}
+                className="flex items-baseline justify-between gap-2"
+              >
                 <span className="text-sm font-semibold text-dark">{code}</span>
                 <span className="text-sm text-muted">
                   {formatCentralBankRate(rate)}
@@ -188,7 +198,9 @@ export default function ImportSection({ data }) {
             <tbody>
               {priceRow && (
                 <tr className="border-t border-border">
-                  <td className="px-4 py-2.5 font-semibold text-dark">{priceRow.label}</td>
+                  <td className="px-4 py-2.5 font-semibold text-dark">
+                    {priceRow.label}
+                  </td>
                   <td className="px-4 py-2.5 text-right font-semibold text-dark whitespace-nowrap">
                     {priceRow.display}
                   </td>
@@ -197,12 +209,18 @@ export default function ImportSection({ data }) {
               {groups.map((group) => (
                 <Fragment key={group.label}>
                   <tr className="border-t border-border bg-surface/70">
-                    <td colSpan={2} className="px-4 py-2 font-semibold text-dark">
+                    <td
+                      colSpan={2}
+                      className="px-4 py-2 font-semibold text-dark"
+                    >
                       {group.label}
                     </td>
                   </tr>
                   {group.itemRows.map((row) => (
-                    <tr key={row.key || row.name} className="border-t border-border/60">
+                    <tr
+                      key={row.key || row.name}
+                      className="border-t border-border/60"
+                    >
                       <td className="px-4 py-2 pl-7 text-muted">{row.label}</td>
                       <td className="px-4 py-2 text-right text-dark whitespace-nowrap">
                         {row.display}
@@ -230,24 +248,27 @@ export default function ImportSection({ data }) {
             {(!hasTotalValue || mainCosts.length === 0) && (
               <p className="text-sm text-muted">Нет данных для диаграммы</p>
             )}
-            {hasTotalValue && mainCosts.map((row) => (
-              <div key={row.name}>
-                <div className="flex items-baseline justify-between gap-2 mb-1">
-                  <span className="text-xs text-muted truncate">{row.label}</span>
-                  <span className="text-xs font-semibold text-dark whitespace-nowrap shrink-0 pl-2">
-                    {formatNumber(row.value)}
-                  </span>
+            {hasTotalValue &&
+              mainCosts.map((row) => (
+                <div key={row.name}>
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <span className="min-w-0 flex-1 text-sm leading-5 text-muted">
+                      {row.label}
+                    </span>
+                    <span className="text-xs font-semibold text-dark whitespace-nowrap shrink-0 pl-2">
+                      {formatNumber(row.value)}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-surface overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-brand to-accent"
+                      style={{
+                        width: `${Math.min(Math.max((row.value / totalValue) * 100, 0), 100)}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-surface overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-brand to-accent"
-                    style={{
-                      width: `${Math.min(Math.max((row.value / totalValue) * 100, 0), 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>
@@ -259,25 +280,43 @@ export default function ImportSection({ data }) {
             Параметры расчёта
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-3 text-sm">
-            <Param label="Цена" value={data.form.price ? `${formatNumber(data.form.price)} ${currencySign(data.form.currency)}` : '—'} />
-            <Param label="Возраст" value={vehicleAgeLabel(data.form.vehicleAge)} />
-            <Param label="Двигатель" value={engineTypeLabel(data.form.engineType)} />
+            <Param
+              label="Цена"
+              value={
+                data.form.price
+                  ? `${formatNumber(data.form.price)} ${currencySign(data.form.currency)}`
+                  : '—'
+              }
+            />
+            <Param
+              label="Возраст"
+              value={vehicleAgeLabel(data.form.vehicleAge)}
+            />
+            <Param
+              label="Двигатель"
+              value={engineTypeLabel(data.form.engineType)}
+            />
             <Param
               label="Объём"
-              value={data.form.engineVolumeInCubicCentimeters ? (
-                <>
-                  <span>
-                    {formatNumber(
-                      Number(data.form.engineVolumeInCubicCentimeters) / 1000,
-                      1,
-                    )}{' '}
-                    л
-                  </span>{' '}
-                  <span className="text-muted font-normal">
-                    ({formatNumber(data.form.engineVolumeInCubicCentimeters)} см³)
-                  </span>
-                </>
-              ) : '—'}
+              value={
+                data.form.engineVolumeInCubicCentimeters ? (
+                  <>
+                    <span>
+                      {formatNumber(
+                        Number(data.form.engineVolumeInCubicCentimeters) / 1000,
+                        1,
+                      )}{' '}
+                      л
+                    </span>{' '}
+                    <span className="text-muted font-normal">
+                      ({formatNumber(data.form.engineVolumeInCubicCentimeters)}{' '}
+                      см³)
+                    </span>
+                  </>
+                ) : (
+                  '—'
+                )
+              }
             />
             <Param
               label="Мощность"
@@ -326,7 +365,9 @@ function importPurposeLabel(value) {
 function Param({ label, value }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wider text-muted/80">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted">
+        {label}
+      </div>
       <div className="font-semibold text-dark truncate">{value || '—'}</div>
     </div>
   )

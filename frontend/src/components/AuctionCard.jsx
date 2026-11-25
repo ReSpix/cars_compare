@@ -21,11 +21,22 @@ export default function AuctionCard({ car }) {
             {car.name || 'Без названия'}
           </h3>
           <span className="text-brand font-extrabold text-sm whitespace-nowrap">
-            {car.price_jpy ? `¥${car.price_jpy.toLocaleString('ru-RU')}` : 'Цена не указана'}
+            {car.price_jpy
+              ? `¥${car.price_jpy.toLocaleString('ru-RU')}`
+              : 'Цена не указана'}
           </span>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
+          {car.auction_date && (
+            <span className="inline-flex items-center gap-1 text-xs bg-brand-light px-2 py-1 rounded-md text-brand-dark">
+              <Calendar className="w-3 h-3" />
+              Аукцион:{' '}
+              {new Date(`${car.auction_date}T00:00:00`).toLocaleDateString(
+                'ru-RU',
+              )}
+            </span>
+          )}
           {car.productionDate && (
             <span className="inline-flex items-center gap-1 text-xs bg-surface px-2 py-1 rounded-md text-muted">
               <Calendar className="w-3 h-3" /> {car.productionDate}
@@ -33,12 +44,14 @@ export default function AuctionCard({ car }) {
           )}
           {car.engine_volume && (
             <span className="inline-flex items-center gap-1 text-xs bg-surface px-2 py-1 rounded-md text-muted">
-              <Gauge className="w-3 h-3" /> {(car.engine_volume / 1000).toFixed(1)} л
+              <Gauge className="w-3 h-3" />{' '}
+              {(car.engine_volume / 1000).toFixed(1)} л
             </span>
           )}
-          {car.mileage && (
+          {car.mileage != null && (
             <span className="inline-flex items-center gap-1 text-xs bg-surface px-2 py-1 rounded-md text-muted">
-              <Route className="w-3 h-3" /> {(car.mileage / 1000).toFixed(0)} тыс. км
+              <Route className="w-3 h-3" /> {(car.mileage / 1000).toFixed(0)}{' '}
+              тыс. км
             </span>
           )}
         </div>

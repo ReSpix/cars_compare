@@ -36,7 +36,7 @@ export const IMPORT_PURPOSES = [
 
 export const AVAILABILITY_LABELS = {
   price_change_chart: 'Оценка цены',
-  similar_cars: 'Похожие авто',
+  similar_cars: 'Объявления в России',
   auctions: 'Аукционы',
   japan_import_response: 'Расчёт импорта',
 }
