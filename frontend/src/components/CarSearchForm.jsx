@@ -55,6 +55,7 @@ export default function CarSearchForm({ onSubmit, disabled = false }) {
   const [firmId, setFirmId] = useState('')
   const [modelId, setModelId] = useState('')
   const [wheel, setWheel] = useState('UNDEFINED')
+  const [wheelOptions, setWheelOptions] = useState([])
   const [year, setYear] = useState('')
   const [frame, setFrame] = useState('')
   const [generationId, setGenerationId] = useState('')
@@ -68,6 +69,8 @@ export default function CarSearchForm({ onSubmit, disabled = false }) {
   const resetDependent = () => {
     setModelId('')
     setModels([])
+    setWheel('UNDEFINED')
+    setWheelOptions([])
     setYear('')
     setYears([])
     setFrame('')
@@ -105,9 +108,27 @@ export default function CarSearchForm({ onSubmit, disabled = false }) {
       setFrame(''); setFrames([])
       setGenerationId(''); setGenerations([])
       setModificationId(''); setModifications([])
-      if (id) load('years', () => getYears(id, wheel), setYears)
+      if (!id) {
+        setWheel('UNDEFINED')
+        setWheelOptions([])
+        return
+      }
+
+      const model = models.find((item) => String(item.id) === id)
+      const availableWheels = model?.wheels ?? []
+      const options = WHEEL_OPTIONS.filter((option) =>
+        availableWheels.includes(option.value),
+      )
+      const nextWheel =
+        availableWheels.includes(wheel)
+          ? wheel
+          : availableWheels[0] || ''
+
+      setWheelOptions(options)
+      setWheel(nextWheel)
+      if (nextWheel) load('years', () => getYears(id, nextWheel), setYears)
     },
-    [wheel],
+    [models, wheel],
   )
 
   const onWheel = useCallback(
@@ -239,13 +260,14 @@ export default function CarSearchForm({ onSubmit, disabled = false }) {
           </select>
         </Field>
 
-        <Field label="Руль">
+        <Field label="Руль" disabled={!modelId}>
           <select
-            className={selectCls}
+            className={clsx(selectCls, !modelId && 'opacity-50 cursor-not-allowed')}
             value={wheel}
             onChange={(e) => onWheel(e.target.value)}
+            disabled={!modelId}
           >
-            {WHEEL_OPTIONS.map((w) => (
+            {wheelOptions.map((w) => (
               <option key={w.value} value={w.value}>
                 {w.label}
               </option>
