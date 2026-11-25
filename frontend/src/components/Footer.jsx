@@ -60,7 +60,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-white/10 mt-8 pt-6 text-center text-xs">
-          © {YEAR} АвтоСрав. Данные предоставлены сервисами Drom.ru.
+          © {YEAR} АвтоСчет. Данные предоставлены сервисами Drom.ru.
         </div>
       </div>
     </footer>

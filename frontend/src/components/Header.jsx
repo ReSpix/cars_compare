@@ -21,7 +21,7 @@ export default function Header() {
               <Car className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-extrabold text-dark tracking-tight">
-              Авто<span className="text-brand">Срав</span>
+              Авто<span className="text-brand">Счет</span>
             </span>
           </a>
 
