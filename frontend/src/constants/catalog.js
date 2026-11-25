@@ -40,3 +40,4 @@ export const AVAILABILITY_LABELS = {
   auctions: 'Аукционы',
   japan_import_response: 'Расчёт импорта',
 }
+
