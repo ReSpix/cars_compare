@@ -1,4 +1,4 @@
-import { CalendarDays, Info } from 'lucide-react'
+import { CalendarDays } from 'lucide-react'
 
 function dateLabel(value) {
   if (!value) return null
@@ -41,19 +41,6 @@ export default function AuctionSampleInfo({ auctions }) {
           </span>
         )}
       </div>
-      <details className="mt-3">
-        <summary className="inline-flex cursor-pointer items-center gap-1.5 font-semibold text-brand">
-          <Info className="h-3.5 w-3.5" />
-          Как посчитана средняя цена
-        </summary>
-        <p className="mt-2 max-w-4xl leading-relaxed">
-          Сумма положительных цен в иенах, делённая на число лотов с ценой.
-          Период — от самой ранней до самой поздней даты этих лотов на Drom. Это
-          загруженная выборка с одной страницы, а не все продажи за указанные
-          даты. Подборка учитывает модель, год и объём двигателя; пробег,
-          состояние и точная комплектация могут отличаться.
-        </p>
-      </details>
     </div>
   )
 }

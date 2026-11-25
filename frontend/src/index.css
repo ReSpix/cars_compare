@@ -24,6 +24,10 @@ body {
   min-height: 100dvh;
 }
 
+.vehicle-card-grid {
+  @apply grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: #e3c9cb transparent;

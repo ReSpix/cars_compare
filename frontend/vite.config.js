@@ -12,6 +12,7 @@ const PROXY_ROUTES = [
   '/auctions',
   '/rate-car',
   '/car_compare',
+  '/budget-alternatives',
   '/log',
   '/docs',
   '/openapi.json',
@@ -28,6 +29,18 @@ const watch = process.env.VITE_USE_POLLING === 'true'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'controls', test: /[\\/]node_modules[\\/](@headlessui|@floating-ui|@react-aria|@react-stately)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   server: { port: 5173, proxy, watch },
   preview: { port: 4173, proxy },
 })

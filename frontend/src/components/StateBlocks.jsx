@@ -1,4 +1,6 @@
-import { Loader2, AlertTriangle, Compass, PlugZap } from 'lucide-react'
+import { useId, useState } from 'react'
+import { Loader2, AlertTriangle, ChevronDown, Compass, PlugZap } from 'lucide-react'
+import clsx from 'clsx'
 
 export function Spinner({ label = 'Загружаем данные…' }) {
   return (
@@ -44,24 +46,16 @@ export function ErrorBanner({
   )
 }
 
-/**
- * Частичный отчёт: комбинированный эндпоинт отдал 500, данные собраны
- * из отдельных вызовов, поэтому расчёт импорта недоступен.
- */
-export function DegradedBanner({ text }) {
+export function DegradedBanner() {
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
       <PlugZap className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
       <div>
         <h3 className="font-semibold text-amber-900 text-sm mb-1">
-          Отчёт собран по частям
+          Часть данных недоступна
         </h3>
         <p className="text-sm text-amber-800/80">
-          Комбинированный эндпоинт{' '}
-          <code className="font-mono text-xs">/car_compare</code> вернул ошибку
-          на расчёте импорта, поэтому оценка, аукционы и похожие объявления
-          получены отдельными запросами.{' '}
-          {text && <span className="font-mono text-xs">{text}</span>}
+          Один из источников Дрома временно не ответил. Доступные результаты показаны ниже.
         </p>
       </div>
     </div>
@@ -89,5 +83,33 @@ export function Section({ id, icon: Icon, title, subtitle, action, children }) {
       </div>
       {children}
     </section>
+  )
+}
+
+export function ListingResults({ label, count, children }) {
+  const id = useId()
+  const [expanded, setExpanded] = useState(false)
+
+  if (!count) return children
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-controls={id}
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+        className="mb-3 flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-border bg-white px-4 py-3 text-left text-sm font-semibold text-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:hidden"
+      >
+        <span>{expanded ? `Свернуть ${label}` : `Показать ${label} (${count})`}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={clsx('h-4 w-4 shrink-0 text-muted transition-transform', expanded && 'rotate-180')}
+        />
+      </button>
+      <div id={id} className={expanded ? undefined : 'hidden sm:block'}>
+        {children}
+      </div>
+    </>
   )
 }

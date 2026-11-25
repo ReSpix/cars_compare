@@ -1,0 +1,16 @@
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$SITE_DOMAIN} {
+	header Alt-Svc "clear"
+	@compressible not path /assets/*
+	encode @compressible zstd gzip
+	reverse_proxy frontend:80 {
+		transport http {
+			response_header_timeout 75s
+		}
+	}
+}

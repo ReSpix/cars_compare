@@ -1,9 +1,11 @@
 import asyncio
+import logging
 import re
 from datetime import date
 from decimal import Decimal
 
 import aiohttp
+from pydantic import ValidationError
 
 from app.parser.auction import get_url, parse_auction
 from app.parser.car_rate import (
@@ -23,9 +25,13 @@ from app.schemas import (
     Currency,
     EngineType,
     JapanImportRequest,
+    PriceChangeChart,
     ResultAvailability,
+    SimilarCars,
     VehicleAge,
 )
+
+logger = logging.getLogger("uvicorn.error").getChild("sources")
 
 
 def _auction_slug(title: str) -> str:
@@ -75,6 +81,15 @@ async def get_combined_compare(
     wheel = query.wheel
     frame = query.frame
     region_id = query.region_id
+    source_errors = []
+
+    async def partial(source, request, default):
+        try:
+            return await request
+        except (aiohttp.ClientError, TimeoutError, ValidationError, RuntimeError) as error:
+            source_errors.append(source)
+            logger.warning("source=%s error=%s status=%s", source, type(error).__name__, getattr(error, "status", "-"))
+            return default
 
     async with aiohttp.ClientSession() as session:
         firms = await get_firms_list(session)
@@ -118,7 +133,7 @@ async def get_combined_compare(
 
         async with asyncio.TaskGroup() as tasks:
             price_change_task = tasks.create_task(
-                get_price_change_chart(
+                partial("price_change_chart", get_price_change_chart(
                     firm_id=firm_id,
                     model_id=model_id,
                     year=year,
@@ -128,10 +143,10 @@ async def get_combined_compare(
                     region_id=region_id,
                     session=session,
                     generation_id=query.generation_id,
-                )
+                ), PriceChangeChart())
             )
             similar_cars_task = tasks.create_task(
-                get_similar_cars(
+                partial("similar_cars", get_similar_cars(
                     firm_id=firm_id,
                     model_id=model_id,
                     year=year,
@@ -141,13 +156,14 @@ async def get_combined_compare(
                     region_id=region_id,
                     session=session,
                     generation_id=query.generation_id,
-                )
+                ), SimilarCars(searchLink=""))
             )
             auction_examples_task = tasks.create_task(
-                parse_auction(
+                partial("auctions", parse_auction(
                     auction_url,
                     session=session,
-                )
+                    strict=True,
+                ), [])
             )
 
         auction_response = AuctionResponse(
@@ -195,11 +211,15 @@ async def get_combined_compare(
                 engineHorsePower=engine_horse_power,
                 importPurpose=query.import_purpose,
             )
-            japan_import_response = await DromJapanCalculator(
-                session=session
-            ).calculate(japan_import_request)
+            japan_import_response = await partial(
+                "japan_import_response",
+                DromJapanCalculator(session=session).calculate(japan_import_request),
+                None,
+            )
 
         price_change_chart = price_change_task.result()
+        if price_change_chart.unavailable_reason == "source_unavailable":
+            source_errors.append("price_change_chart")
         similar_cars = similar_cars_task.result()
         results_availability = CombinedResultsAvailability(
             price_change_chart=ResultAvailability(
@@ -220,4 +240,5 @@ async def get_combined_compare(
             auctions=auction_response,
             japan_import_response=japan_import_response,
             results_availability=results_availability,
+            source_errors=source_errors,
         )

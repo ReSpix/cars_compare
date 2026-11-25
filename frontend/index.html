@@ -11,7 +11,26 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main id="startup" style="max-width:32rem;margin:12vh auto 0;padding:0 1rem;color:#17181c;font:1rem/1.5 system-ui,sans-serif">
+        <h1 style="margin:0 0 .5rem;font-size:1.5rem">АвтоСчёт</h1>
+        <p id="startup-status" role="status">Загружаем сравнение цен…</p>
+        <button id="startup-reload" type="button" hidden onclick="location.reload()">Обновить страницу</button>
+        <noscript>Для расчёта стоимости включите JavaScript в браузере.</noscript>
+      </main>
+    </div>
+    <script>
+      const showStartupFailure = () => {
+        const status = document.getElementById('startup-status')
+        if (!status) return
+        status.textContent = 'Не удалось загрузить АвтоСчёт. Попробуйте обновить страницу.'
+        document.getElementById('startup-reload').hidden = false
+      }
+      window.addEventListener('error', (event) => {
+        if (event.target.type === 'module' || event.target.rel === 'stylesheet') showStartupFailure()
+      }, true)
+      window.setTimeout(showStartupFailure, 12_000)
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

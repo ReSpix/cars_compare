@@ -1,136 +1,91 @@
 import { AlertTriangle, CircleHelp, Gauge, Scale, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
-import { getComparisonConclusion, getDomesticPrice } from '../utils/comparison'
 import { formatNumber } from '../utils/format'
 
-export default function ComparisonConclusion({ report, selection }) {
-  const result = getComparisonConclusion(report, selection)
-  const domestic = getDomesticPrice(report)
+const icons = { restricted: AlertTriangle, incomplete: CircleHelp, close: Scale }
+
+export default function ComparisonConclusion({ report, conclusion: result, domesticCount }) {
   const warning = result.kind === 'restricted'
-  const Icon = warning
-    ? AlertTriangle
-    : result.kind === 'incomplete'
-      ? CircleHelp
-      : result.kind === 'close'
-        ? Scale
-        : Sparkles
-  const mileageSamples = [
+  const Icon = icons[result.kind] || Sparkles
+  const samples = [
     {
       label: 'Россия · объявления',
       data: report?.similar_cars,
-      total: report?.similar_cars?.bulls?.length ?? 0,
-      unit: 'найденных объявлений',
+      total: domesticCount,
     },
     {
       label: 'Япония · аукционные лоты',
       data: report?.auctions,
       total: report?.auctions?.priced_lot_count ?? 0,
-      unit: 'лотов с ценой',
     },
   ]
   return (
     <section
       aria-label="Итог сравнения"
       className={clsx(
-        'rounded-2xl border p-5 md:p-6',
+        'grid gap-4 rounded-2xl border p-5 md:gap-5 md:p-6',
         warning ? 'border-amber-200 bg-amber-50' : 'border-border bg-white',
       )}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={clsx(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-            warning
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-brand-light text-brand',
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="mb-1.5 text-sm font-semibold leading-5 text-muted">
-            Что выгоднее в вашем случае · предварительная оценка
+      <header className="min-w-0">
+        <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted">
+          <span className={clsx(
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+            warning ? 'bg-amber-100 text-amber-700' : 'bg-brand-light text-brand',
+          )}>
+            <Icon className="h-4 w-4" aria-hidden="true" />
+          </span>
+          Итог сравнения
+        </p>
+        <h2 className="text-xl font-bold leading-snug text-dark md:text-2xl">{result.title}</h2>
+        {result.difference != null && (
+          <p className="mt-2 flex flex-wrap gap-x-1.5 text-sm font-semibold text-dark">
+            <span>Разница</span>
+            <span className="whitespace-nowrap">{formatNumber(result.difference)} ₽</span>
+            <span className="whitespace-nowrap">· {formatNumber(result.percent, 1)}%</span>
           </p>
-          <h2 className="text-xl font-bold leading-snug text-dark md:text-2xl">
-            {result.title}
-          </h2>
-          {result.difference != null && (
-            <p className="mt-2 text-sm font-semibold text-dark">
-              Разница: {formatNumber(result.difference)} ₽ ·{' '}
-              {formatNumber(result.percent, 1)}%
-            </p>
+        )}
+      </header>
+      {result.note ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="min-w-0 rounded-xl bg-surface p-4">
+            <h3 className="text-sm font-semibold text-dark">Срок привоза</h3>
+            <p className="mt-1 text-sm leading-6 text-muted">{result.description}</p>
+          </div>
+          <div className="min-w-0 rounded-xl bg-surface p-4">
+            <h3 className="text-sm font-semibold text-dark">Что влияет на цену</h3>
+            <p className="mt-1 text-sm leading-6 text-muted">{result.note}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-[88ch] text-base leading-7 text-dark">
+          <p>{result.description}</p>
+          {warning && (
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-sm font-medium leading-6 text-amber-950">
+              {result.restrictions.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
           )}
         </div>
-      </div>
-      <p className="mt-4 max-w-4xl text-base leading-7 text-dark">
-        {result.description}
-      </p>
-      {warning && (
-        <ul className="mt-3 space-y-1.5 text-sm font-medium leading-6 text-amber-950">
-          {result.restrictions.map((reason) => (
-            <li key={reason}>• {reason}</li>
-          ))}
-        </ul>
       )}
-      <div
-        className="mt-4 grid gap-3 sm:grid-cols-2"
-        role="group"
-        aria-label="Средний пробег по выборкам"
-      >
-        {mileageSamples.map(({ label, data, total, unit }) => (
-          <div
-            key={label}
-            className="rounded-xl border border-border bg-white p-4"
-          >
-            <p className="flex items-center gap-1.5 text-sm font-semibold leading-5 text-muted">
-              <Gauge className="h-4 w-4 shrink-0" />
+      <div className="grid gap-3 md:grid-cols-2" role="group" aria-label="Средний пробег">
+        {samples.map(({ label, data, total }) => (
+          <div key={label} className="rounded-xl border border-border bg-white p-4">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-muted">
+              <Gauge className="h-4 w-4 shrink-0" aria-hidden="true" />
               {label}
             </p>
             <p className="mt-1.5 text-xl font-bold leading-7 text-dark">
               {data?.avg_mileage_km != null
-                ? `${formatNumber(data.avg_mileage_km)} км`
+                ? <span className="whitespace-nowrap">{formatNumber(data.avg_mileage_km)} км</span>
                 : 'Нет данных о пробеге'}
             </p>
-            <p className="mt-1 text-sm leading-6 text-muted">
-              Средний пробег · данные для {data?.mileage_count ?? 0} из {total}{' '}
-              {unit}
-            </p>
+            {total > 0 && (
+              <p className="mt-1 text-sm leading-6 text-muted">
+                Средний пробег · данные для {data?.mileage_count ?? 0} из {total}
+              </p>
+            )}
           </div>
         ))}
-      </div>
-      <div className="mt-5 space-y-2.5 border-t border-border pt-4 text-sm leading-6 text-muted">
-        <p>
-          Цена привоза — до Владивостока. Доставка до вашего города и
-          индивидуальные условия оплаты могут изменить итоговую разницу.
-        </p>
-        {domestic.source === 'listing_average' && (
-          <p>
-            Цена в России — среднее по {domestic.sampleCount} похожим
-            объявлениям, поскольку оценка Drom недоступна. Это цены предложений,
-            а не завершённых сделок.
-          </p>
-        )}
-        {report?.japan_import_response && (
-          <p>
-            Цена лота для калькулятора:{' '}
-            {selection.price
-              ? 'указана вручную'
-              : 'средняя по найденной аукционной выборке'}
-            .
-          </p>
-        )}
-        {warning && (
-          <details>
-            <summary className="cursor-pointer font-semibold text-amber-900">
-              Об ограничениях экспорта
-            </summary>
-            <p className="mt-2">
-              Проверка предварительная, по характеристикам выбранной
-              модификации. Доставка через другую страну сама по себе не отменяет
-              ограничений.
-            </p>
-          </details>
-        )}
       </div>
     </section>
   )

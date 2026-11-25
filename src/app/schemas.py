@@ -188,6 +188,7 @@ class Bull(DromCatalogModel):
     src2x: str | None = None
     price: int
     mileage: int | None = Field(default=None, ge=0)
+    location: str | None = None
 
 
 class PriceChangeChart(DromCatalogModel):
@@ -198,6 +199,7 @@ class PriceChangeChart(DromCatalogModel):
 
 class SimilarCars(DromCatalogModel):
     bulls: list[Bull] = Field(default_factory=list)
+    extra_bulls: list[Bull] = Field(default_factory=list)
     searchLink: str
     myCarAddToDraftLink: str | None = None
     avg_mileage_km: int | None = None
@@ -205,7 +207,7 @@ class SimilarCars(DromCatalogModel):
 
     @model_validator(mode="after")
     def calculate_average_mileage(self) -> "SimilarCars":
-        mileages = [bull.mileage for bull in self.bulls if bull.mileage is not None]
+        mileages = [bull.mileage for bull in [*self.bulls, *self.extra_bulls][:8] if bull.mileage is not None]
         self.mileage_count = len(mileages)
         self.avg_mileage_km = round(sum(mileages) / len(mileages)) if mileages else None
         return self
@@ -406,3 +408,5 @@ class CombinedCarRateResponse(BaseModel):
     auctions: AuctionResponse
     japan_import_response: JapanImportResponse | None = None
     results_availability: CombinedResultsAvailability
+    source_errors: list[str] = Field(default_factory=list)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

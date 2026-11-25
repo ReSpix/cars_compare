@@ -1,4 +1,5 @@
 import { Car } from 'lucide-react'
+import DromLink from './DromLink'
 
 const YEAR = new Date().getFullYear()
 
@@ -13,12 +14,11 @@ export default function Footer() {
                 <Car className="w-4 h-4 text-white" />
               </div>
               <span className="text-lg font-extrabold text-white">
-                Авто<span className="text-brand">Срав</span>
+                Авто<span className="text-brand">Счёт</span>
               </span>
             </div>
             <p className="text-sm leading-relaxed">
-              Один отчёт вместо десяти вкладок: рыночная оценка, аукционы Японии,
-              похожие объявления и полная стоимость импорта под ключ.
+              Сравнение цен в России и стоимости привоза из Японии.
             </p>
           </div>
           <div>
@@ -27,34 +27,31 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
+                <DromLink
                   href="https://auto.drom.ru/rate_car/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  placement="footer_estimate"
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   Рекомендованная цена
-                </a>
+                </DromLink>
               </li>
               <li>
-                <a
+                <DromLink
                   href="https://www.drom.ru/world/japan/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  placement="footer_auctions"
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   Лоты японских аукционов
-                </a>
+                </DromLink>
               </li>
               <li>
-                <a
+                <DromLink
                   href="https://www.drom.ru/world/calculator/japan/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  placement="footer_calculator"
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   Калькулятор стоимости привоза
-                </a>
+                </DromLink>
               </li>
             </ul>
           </div>

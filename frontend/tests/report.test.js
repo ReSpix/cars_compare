@@ -19,51 +19,45 @@ const report = (russia = 2_000_000, japan = 1_500_000) => ({
   },
 })
 
-test('search preserves region/model and replaces generation and statistical filters with year bounds', () => {
+test('search preserves the model filters and uses the report year for both destinations', () => {
   const links = buildDromSearchLinks(
     'https://auto.drom.ru/region25/toyota/rav4/generation5/restyling0/suv/?w=1&price_stats=1&pts=2',
-    { from: '2018', to: '2021' },
+    '2020',
   )
   const result = new URL(links.underOrder)
-  assert.equal(result.pathname, '/region25/toyota/rav4/')
+  assert.equal(result.pathname, '/region25/toyota/rav4/generation5/restyling0/suv/')
   assert.equal(result.searchParams.get('whereabouts[]'), '2')
-  assert.equal(result.searchParams.get('minyear'), '2018')
-  assert.equal(result.searchParams.get('maxyear'), '2021')
+  assert.equal(result.searchParams.get('minyear'), '2020')
+  assert.equal(result.searchParams.get('maxyear'), '2020')
   assert.equal(result.searchParams.has('pts'), false)
-  assert.deepEqual(
-    buildDromSearchLinks(links.domestic, { from: '2022', to: '2020' }),
-    { domestic: null, underOrder: null, invalid: true },
-  )
-  assert.deepEqual(
-    buildDromSearchLinks(links.domestic, { from: '', to: '2020' }),
-    { domestic: null, underOrder: null, invalid: true },
-  )
+  assert.equal(new URL(links.domestic).searchParams.get('w'), '1')
+  assert.equal(result.searchParams.has('w'), false)
 })
 
 test('domestic search is separate from under-order search', () => {
-  const links = buildDromSearchLinks('https://auto.drom.ru/toyota/rav4/', {
-    from: '2020',
-    to: '2020',
-  })
-  assert.equal(new URL(links.domestic).searchParams.has('whereabouts[]'), false)
+  const links = buildDromSearchLinks('https://auto.drom.ru/toyota/rav4/', '2020')
+  assert.equal(new URL(links.domestic).searchParams.get('whereabouts[]'), '0')
+  assert.equal(new URL(links.domestic).searchParams.get('unsold'), '1')
   assert.equal(new URL(links.underOrder).searchParams.get('whereabouts[]'), '2')
 })
 
-test('missing or untrusted model links fall back to the Drom order section with the selected years', () => {
+test('missing or untrusted model links use the auction model or the general Drom section', () => {
   for (const source of [
     undefined,
     'https://example.com/toyota/rav4/',
     'http://auto.drom.ru/toyota/rav4/',
   ]) {
-    const links = buildDromSearchLinks(source, { from: '2018', to: '2021' })
-    assert.equal(links.domestic, null)
+    const links = buildDromSearchLinks(source, '2020')
+    assert.equal(links.matchesModel, false)
     const result = new URL(links.underOrder)
     assert.equal(result.origin, 'https://auto.drom.ru')
     assert.equal(result.pathname, '/')
     assert.equal(result.searchParams.get('whereabouts[]'), '2')
-    assert.equal(result.searchParams.get('minyear'), '2018')
-    assert.equal(result.searchParams.get('maxyear'), '2021')
+    assert.equal(result.searchParams.has('minyear'), false)
   }
+  const fallback = buildDromSearchLinks('', '2020', 'https://www.drom.ru/world/japan/toyota/rav4/')
+  assert.equal(fallback.matchesModel, true)
+  assert.equal(new URL(fallback.underOrder).pathname, '/toyota/rav4/')
 })
 
 test('conclusions distinguish Japan, Russia, close prices, and unavailable/non-RUB totals', () => {
@@ -188,6 +182,7 @@ test('a small-engine Prius warning explains the Japanese export restriction', ()
   })
   assert.equal(result.kind, 'restricted')
   assert.match(result.title, /экспорта из Японии/)
-  assert.match(result.description, /не означает запрет на покупку/)
+  assert.match(result.description, /другой маршрут/)
+  assert.doesNotMatch(result.description, /30–45/)
   assert.match(result.restrictions[0], /до 1,9 л/)
 })

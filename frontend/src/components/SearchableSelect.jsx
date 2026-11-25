@@ -20,18 +20,22 @@ export default function SearchableSelect({
   loading = false,
   error = false,
   onRetry,
+  freeInput = false,
+  hideLabel = false,
 }) {
   const id = useId()
   const [query, setQuery] = useState('')
   const choices = uniqueOptions(options)
-  const selected =
-    choices.find((option) => option.value === String(value)) ?? null
-  const filtered = filterOptions(choices, query)
+  const selected = choices.find((option) => option.value === String(value))
+    ?? (freeInput && value ? { value, label: value } : null)
+  const filtered = freeInput && query
+    ? choices.filter((option) => option.value.startsWith(query.replace(/\s/g, '')))
+    : filterOptions(choices, query)
   return (
-    <div className="min-w-0 space-y-1.5">
+    <div className="min-w-0">
       <label
         htmlFor={id}
-        className="block text-xs font-semibold uppercase tracking-wide text-muted"
+        className={hideLabel ? 'sr-only' : 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted'}
       >
         {label}
       </label>
@@ -56,7 +60,12 @@ export default function SearchableSelect({
           <ComboboxInput
             id={id}
             displayValue={(option) => option?.label ?? ''}
-            onChange={(event) => setQuery(event.target.value)}
+            inputMode={freeInput ? 'numeric' : undefined}
+            onChange={(event) => {
+              const input = event.target.value
+              setQuery(input)
+              if (freeInput) onChange(input)
+            }}
             onFocus={(event) => event.target.select()}
             placeholder={loading ? 'Загружаем…' : placeholder}
             autoComplete="off"
@@ -75,6 +84,7 @@ export default function SearchableSelect({
         </div>
         <ComboboxOptions
           portal
+          modal={false}
           anchor={{ to: 'bottom start', gap: 6, padding: 8 }}
           transition
           className="z-50 max-h-72 w-[var(--input-width)] overflow-auto rounded-xl border border-border bg-white p-1.5 shadow-xl shadow-dark/15 outline-none transition duration-100 data-closed:opacity-0"
@@ -91,14 +101,14 @@ export default function SearchableSelect({
           ))}
           {!filtered.length && (
             <div className="px-3 py-4 text-sm text-muted">
-              {query ? 'Ничего не найдено' : 'Нет доступных вариантов'}
+              {freeInput && query ? 'Можно оставить введённую сумму' : query ? 'Ничего не найдено' : 'Нет доступных вариантов'}
             </div>
           )}
         </ComboboxOptions>
       </Combobox>
       {error && (
         <div
-          className="flex items-center gap-2 text-xs text-red-700"
+          className="mt-1.5 flex items-center gap-2 text-xs text-red-700"
           role="alert"
         >
           Не удалось загрузить список

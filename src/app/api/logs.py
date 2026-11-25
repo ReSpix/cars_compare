@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 import aiosqlite
@@ -13,8 +14,8 @@ async def create_log(
 ) -> dict[str, int]:
     database: aiosqlite.Connection = request.app.state.database
     async with database.execute(
-        "INSERT INTO logs (message) VALUES (?)",
-        (message,),
+        "INSERT INTO logs (message, created_at) VALUES (?, ?)",
+        (message[:2048], datetime.now(UTC).isoformat()),
     ) as cursor:
         await database.commit()
         return {"id": cursor.lastrowid}

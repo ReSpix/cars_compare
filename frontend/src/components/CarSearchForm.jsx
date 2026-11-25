@@ -38,6 +38,8 @@ export default function CarSearchForm({
   onSubmit,
   disabled = false,
   initialSelection = {},
+  onDraftChange,
+  children,
 }) {
   const [selection, setSelection] = useState(() =>
     Object.fromEntries(
@@ -51,7 +53,7 @@ export default function CarSearchForm({
     regionId,
     firmId,
     modelId,
-    wheel,
+    wheel: draftWheel,
     year,
     frame,
     generationId,
@@ -59,11 +61,12 @@ export default function CarSearchForm({
   } = selection
   const regions = useCatalog(getRegions, 'regions')
   const firms = useCatalog(getFirms, 'firms')
-  const models = useCatalog(
-    () => getModels(firmId, Number(regionId)),
-    `${firmId}:${regionId}`,
-    !!firmId,
+  const models = useCatalog(() => getModels(firmId), firmId, !!firmId)
+  const chosenModel = models.items.find((model) => String(model.id) === modelId)
+  const wheels = WHEEL_OPTIONS.filter((option) =>
+    chosenModel?.wheels.includes(option.value),
   )
+  const wheel = draftWheel || (wheels.length === 1 ? wheels[0].value : '')
   const years = useCatalog(
     () => getYears(modelId, wheel),
     `${modelId}:${wheel}`,
@@ -84,15 +87,15 @@ export default function CarSearchForm({
     `${modelId}:${year}:${frame}:${generationId}:${wheel}`,
     !!generationId && !!frame && !!year && !!modelId && !!wheel,
   )
-  const chosenModel = models.items.find((model) => String(model.id) === modelId)
-  const wheels = WHEEL_OPTIONS.filter((option) =>
-    chosenModel?.wheels.includes(option.value),
-  )
+  const activeSelection = { ...selection, wheel }
 
   const change = (field, value) => {
+    if (activeSelection[field] === value) return
+    onDraftChange?.(field, value)
     setSelection((previous) => {
       const next = { ...previous, [field]: value }
-      const index = field === 'regionId' ? 0 : cascade.indexOf(field)
+      if (field === 'regionId') return next
+      const index = cascade.indexOf(field)
       cascade.slice(index + 1).forEach((key) => {
         next[key] = defaults[key]
       })
@@ -115,9 +118,6 @@ export default function CarSearchForm({
     generations,
     modifications,
   ]
-  const isReady =
-    cascade.every((key) => selection[key]) &&
-    !catalogs.some((catalog) => catalog.loading || catalog.error)
   const fields = [
     {
       key: 'regionId',
@@ -193,13 +193,18 @@ export default function CarSearchForm({
       blocked: !generationId,
     },
   ]
+  const isReady =
+    !catalogs.some((catalog) => catalog.loading || catalog.error) &&
+    fields.every(({ key, options }) =>
+      options.some((option) => String(option.value) === activeSelection[key]),
+    )
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault()
         if (!isReady || disabled) return
         onSubmit?.({
-          ...selection,
+          ...activeSelection,
           firm: firms.items.find((item) => String(item.id) === firmId),
           model: chosenModel,
           generation: generations.items.find(
@@ -218,7 +223,7 @@ export default function CarSearchForm({
           <SearchableSelect
             key={field.key}
             label={field.label}
-            value={selection[field.key]}
+            value={activeSelection[field.key]}
             options={field.options}
             onChange={(value) => change(field.key, value)}
             disabled={disabled || field.blocked}
@@ -232,6 +237,7 @@ export default function CarSearchForm({
           />
         ))}
       </div>
+      {children}
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <button
           type="submit"
@@ -244,11 +250,10 @@ export default function CarSearchForm({
           )}
         >
           <GitCompareArrows className="h-4 w-4" />
-          Построить отчёт
+          Рассчитать сравнение
         </button>
         <p className="text-sm leading-6 text-muted">
-          Расчёт — для одного года и модификации. Диапазон поиска можно задать в
-          отчёте.
+          Расчёт учитывает выбранный год и модификацию.
         </p>
       </div>
     </form>

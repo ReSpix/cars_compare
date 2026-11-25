@@ -9,7 +9,7 @@ from app.schemas import AuctionQuery, Car
 
 
 async def parse_drom(
-    url: str, session: aiohttp.ClientSession | None = None
+    url: str, session: aiohttp.ClientSession | None = None, *, strict: bool = False
 ) -> list[Car]:
     try:
         async with AsyncExitStack() as stack:
@@ -24,6 +24,8 @@ async def parse_drom(
                 response.raise_for_status()
                 page = await response.text()
     except (aiohttp.ClientError, asyncio.TimeoutError):
+        if strict:
+            raise
         return []
 
     soup = BeautifulSoup(page, "html.parser")
@@ -63,10 +65,10 @@ async def parse_drom(
 
 
 async def parse_auction(
-    url: str, session: aiohttp.ClientSession | None = None
+    url: str, session: aiohttp.ClientSession | None = None, *, strict: bool = False
 ) -> list[Car]:
     """Parse a Drom Japan auction listing."""
-    return await parse_drom(url=url, session=session)
+    return await parse_drom(url=url, session=session, strict=strict)
 
 
 def get_url(query: AuctionQuery):

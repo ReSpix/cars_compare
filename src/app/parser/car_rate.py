@@ -15,6 +15,7 @@ from typing import Any, ParamSpec, TypeVar
 import aiohttp
 
 from app.parser.listing_mileage import enrich_listing_mileages
+from app.parser.drom_market import get_market_cards, listing_id
 from app.schemas import (
     Firm,
     Generation,
@@ -587,9 +588,18 @@ async def get_similar_cars(
         ),
         session=session,
     )
-    raw["bulls"] = await enrich_listing_mileages(
-        raw.get("bulls") or [], session=session
-    )
+    primary = list({
+        (listing_id(bull["url"]) or bull["url"]): bull for bull in raw.get("bulls") or []
+    }.values())
+    if session is None:
+        async with aiohttp.ClientSession(headers={"User-Agent": _UA}) as client:
+            extra = await get_market_cards(raw.get("searchLink"), year, primary, client)
+            listings = await enrich_listing_mileages([*primary, *extra], session=client)
+    else:
+        extra = await get_market_cards(raw.get("searchLink"), year, primary, session)
+        listings = await enrich_listing_mileages([*primary, *extra], session=session)
+    raw["bulls"] = listings[:len(primary)]
+    raw["extra_bulls"] = listings[len(primary):]
     return SimilarCars(**raw)
 
 
