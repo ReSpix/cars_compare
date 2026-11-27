@@ -14,7 +14,7 @@ export default function Footer() {
                 <Car className="w-4 h-4 text-white" />
               </div>
               <span className="text-lg font-extrabold text-white">
-                Авто<span className="text-brand">Счёт</span>
+                Авто<span className="text-brand">Сумма</span>
               </span>
             </div>
             <p className="text-sm leading-relaxed">
@@ -57,7 +57,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-white/10 mt-8 pt-6 text-center text-xs">
-          © {YEAR} АвтоСчет. Данные предоставлены сервисами Drom.ru.
+          © {YEAR} АвтоСумма. Данные предоставлены сервисами Drom.ru.
         </div>
       </div>
     </footer>
