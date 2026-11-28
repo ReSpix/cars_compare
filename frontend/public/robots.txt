@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /rate-car
+Disallow: /car_compare
+
+Sitemap: https://avto-summa.ru/sitemap.xml
